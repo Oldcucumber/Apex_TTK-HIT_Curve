@@ -10,20 +10,19 @@
           @click="currentTab = tab.component"
           :class="{ active: currentTab === tab.component }"
         >
-          {{ tab.name }}
+          {{ lang.labels[tab.name] }}
         </button>
       </div>
       
       <!-- 语言选择下拉框 -->
       <select v-model="selectedLanguage" @change="changeLanguage" class="language-select">
-        <option value="zh">中文</option>
-        <option value="en">English</option>
+        <option v-for="item,name in langList" :value="name">{{ item.text }}</option>
       </select>
     </nav>
 
     <!-- 内容区域 -->
     <main class="content">
-      <component :is="currentTab" />
+      <component :is="currentTab" :lang=lang />
     </main>
   </div>
 </template>
@@ -32,6 +31,8 @@
 import { ref } from 'vue'
 import chart from '@/components/chart.vue'
 import list from '@/components/list.vue'
+import cn from '@/data/cn.js'
+import en from '@/data/en.js'
 
 export default {
   components: {
@@ -40,24 +41,35 @@ export default {
   },
   setup() {
     const currentTab = ref('chart')
-    const selectedLanguage = ref('zh')
     const tabs = [
-      { name: 'TTK-命中率表', component: 'chart' },
-      { name: '命中率自测', component: 'list' },
+      { name: 'ttk_curve', component: 'chart' },
+      { name: 'self_test', component: 'list' },
     ]
-
-    const changeLanguage = () => {
-      // 这里可以添加实际的语言切换逻辑
-      console.log('切换语言到:', selectedLanguage.value)
-    }
+    
 
     return {
       currentTab,
-      selectedLanguage,
       tabs,
-      changeLanguage
     }
-  }
+  },
+  data() {
+    const langList = {
+      "cn":{text:'中文',data:cn},
+      "en":{text:'English',data:en}
+    }
+
+    return {
+      selectedLanguage: 'cn',
+      langList,
+      lang: cn
+    }
+  },
+  methods:{
+    changeLanguage() {
+      this.lang = this.langList[this.selectedLanguage].data
+      console.log('切换语言到:', this.selectedLanguage)
+    },
+  },
 }
 </script>
 

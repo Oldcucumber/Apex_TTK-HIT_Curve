@@ -144,7 +144,7 @@ export default {
   data() {
     return {
       chartInstance: null, // 存储图表实例
-      ttk: chartDataFormatter(ttks, names),
+      ttk: chartDataFormatter(ttks, this.lang.names),
       name: names,
       classes: classes,
       filter: {},
@@ -153,6 +153,9 @@ export default {
       transformType: 'none', // 数据变换类型
       transformParams: {}, // 变换参数
     };
+  },
+  props: { 
+    lang:{type: Object, required: true}
   },
   async mounted() {
     this.allCheckboxHeight = this.$refs.all_checkbox.offsetHeight;
@@ -398,7 +401,44 @@ export default {
         if (this.chartInstance) this.chartInstance.resize();
       });
     },
-  }
+  },
+  watch: { 
+    lang() {
+      const newOption = DEFAULT_OPTIONS;
+      newOption.series = chartDataFormatter(ttks, this.lang.names);
+      const hitRateLabel = this.lang.labels["hit_rate"]
+      newOption.tooltip.formatter = (params) => {
+        if (!params || params.length === 0) return '';
+        
+        // 获取X轴值（命中率）
+        const hitRate = params[0].value[0];
+        let tooltipContent = `<div style="font-weight: bold; margin-bottom: 8px;">${hitRateLabel}: ${hitRate.toFixed(1)}%</div>`;
+        
+        // 按TTK值排序，显示最优性能的武器
+        const sortedParams = params
+          .filter(param => param.value && param.value[1] !== null)
+          .sort((a, b) => a.value[1] - b.value[1]);
+        
+        sortedParams.forEach((param, index) => {
+          const ttk = param.value[1];
+          const weaponName = param.seriesName;
+          const color = param.color;
+          
+          tooltipContent += `
+            <div style="display: flex; align-items: center; margin: 4px 0;">
+              <span style="display: inline-block; width: 10px; height: 10px; background-color: ${color}; border-radius: 50%; margin-right: 8px;"></span>
+              <span style="flex: 1;">${weaponName}</span>
+              <span style="font-weight: bold; color: ${index === 0 ? '#50BBAA' : '#fff'};">${ttk.toFixed(3)}s</span>
+            </div>
+          `;
+        });
+      
+        return tooltipContent;
+      },
+      this.chartInstance.setOption(newOption,true);
+      this.updateAxisRange();
+    }
+  },
 };
 </script>
 <template>
@@ -407,10 +447,10 @@ export default {
       :style="{ height: `calc(100vh - ${this.allCheckboxHeight + 100}px)` }"></div>
   </div>
 
-  <div style="display: flex; flex-direction: row ; align-items: center; justify-content: space-between; padding: 0px 10px;">
-    <div v-for="(item, index) in classes" :key="index" class="checkbox">
+  <div style="display: flex; flex-direction: row ; align-items: center; justify-content: space-between;">
+    <div v-for="(name, index) in lang.classes" :key="index" class="checkbox">
       <button class="checkbtn" :class="{ active: this.filter[index] }" @click="changeFilter(index)">
-        <span class="label">{{ index }}</span>
+        <span class="label">{{ name }}</span>
       </button>
     </div>
     <div ref="all_checkbox" class="checkbox">
