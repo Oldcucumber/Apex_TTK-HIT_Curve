@@ -27,7 +27,7 @@ const DEFAULT_OPTIONS = {
   grid: {
     top: '35px',
     right: '280px',
-    bottom: '5%',
+    bottom: '40px',
     left: '20px',
     containLabel: true
   },
@@ -407,7 +407,7 @@ export default {
       :style="{ height: `calc(100vh - ${this.allCheckboxHeight + 100}px)` }"></div>
   </div>
 
-  <div style="display: flex; flex-direction: row ; align-items: center; justify-content: space-between;">
+  <div style="display: flex; flex-direction: row ; align-items: center; justify-content: space-between; padding: 0px 10px;">
     <div v-for="(item, index) in classes" :key="index" class="checkbox">
       <button class="checkbtn" :class="{ active: this.filter[index] }" @click="changeFilter(index)">
         <span class="label">{{ index }}</span>
@@ -424,14 +424,14 @@ export default {
 .checkbox {
   display: flex;
   align-items: center;
-  padding: 15px 25px;
+  padding: 15px 5px;
   font-family: Arial, sans-serif;
   color: black;
 }
 
 .checkbtn {
-  width: 168px;
-  height: 100px;
+  width: 140px;
+  height: 90px;
   background: #212121;
   outline: 0 solid #307B6E;
   border-radius: 15px;
@@ -449,11 +449,11 @@ export default {
 }
 
 .checkbtn:hover {
-  outline-width: 8px;
+  outline-width: 5px;
 }
 
 .checkbtn.active {
-  outline-width: 8px;
+  outline-width: 5px;
   outline-color: #50BBAA;
 }
 </style>

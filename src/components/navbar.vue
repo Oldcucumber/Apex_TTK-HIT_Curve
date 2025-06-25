@@ -83,6 +83,7 @@ export default {
   display: flex;
   gap: 1rem;
   height: 100%;
+  max-width: 100vw;
 }
 
 button {
