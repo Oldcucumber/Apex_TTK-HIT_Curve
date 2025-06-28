@@ -5,10 +5,10 @@
       <div class="nav-items">
         <!-- 导航按钮 -->
         <button
-          v-for="tab in tabs"
-          :key="tab.component"
-          @click="currentTab = tab.component"
-          :class="{ active: currentTab === tab.component }"
+          v-for="tab,index in tabs"
+          :key="tab.comp"
+          @click="currentTab = tab.comp"
+          :class="{ active: currentTab === tab.comp }"
         >
           {{ lang.labels[tab.name] }}
         </button>
@@ -31,6 +31,7 @@
 import { ref } from 'vue'
 import chart from '@/components/chart.vue'
 import list from '@/components/list.vue'
+import scatter from './scatter.vue'
 import cn from '@/data/cn.js'
 import en from '@/data/en.js'
 
@@ -38,12 +39,14 @@ export default {
   components: {
     chart,
     list,
+    scatter,
   },
   setup() {
     const currentTab = ref('chart')
     const tabs = [
-      { name: 'ttk_curve', component: 'chart' },
-      { name: 'self_test', component: 'list' },
+      { name: 'ttk_curve', comp: 'chart' },
+      { name: 'self_test', comp: 'list' },
+      { name: 'ttk_ttm', comp: 'scatter' },
     ]
     
 
@@ -68,6 +71,8 @@ export default {
     changeLanguage() {
       this.lang = this.langList[this.selectedLanguage].data
       console.log('切换语言到:', this.selectedLanguage)
+      const currentChild = this.$options.components[this.currentTab]
+      this.$nextTick(()=>{currentChild.methods.changeLang();})
     },
   },
 }

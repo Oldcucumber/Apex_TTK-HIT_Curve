@@ -126,7 +126,8 @@ const DEFAULT_OPTIONS = {
       end: 100,
       zoomOnMouseWheel: true,
       moveOnMouseMove: true,
-      moveOnMouseWheel: false
+      moveOnMouseWheel: false,
+      filterMode: 'none'
     },
     {
       type: 'slider', // 滑动条型数据区域缩放
@@ -135,7 +136,8 @@ const DEFAULT_OPTIONS = {
       start: 0,     // 根据数据范围调整起始值（约37%）
       end: 100,      // 结束值保持100%
       height: 30,    // 滑动条的高度
-      bottom: 10      // 滑动条的位置
+      bottom: 10,      // 滑动条的位置
+      filterMode: 'none'
     }
   ]
 };
@@ -401,10 +403,9 @@ export default {
         if (this.chartInstance) this.chartInstance.resize();
       });
     },
-  },
-  watch: { 
-    lang() {
+    changeLang(){
       const newOption = DEFAULT_OPTIONS;
+      console.log('1:', this.lang)
       newOption.series = chartDataFormatter(ttks, this.lang.names);
       const hitRateLabel = this.lang.labels["hit_rate"]
       newOption.tooltip.formatter = (params) => {
