@@ -47,6 +47,7 @@ const cn = {
     labels:{
         "ttk_curve":"TTK-HIT Curve",
         "self_test":"TTK self test",
+        "ttk_ttm":"TTK-TTM Table",
         "hit_rate":"Hit Rate"
     }
 }

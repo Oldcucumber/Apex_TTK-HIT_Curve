@@ -7,7 +7,7 @@
         <button
           v-for="tab,index in tabs"
           :key="tab.comp"
-          @click="currentTab = tab.comp"
+          @click="setActive(tab.comp)"
           :class="{ active: currentTab === tab.comp }"
         >
           {{ lang.labels[tab.name] }}
@@ -22,7 +22,7 @@
 
     <!-- 内容区域 -->
     <main class="content">
-      <component :is="currentTab" :lang=lang />
+      <component :is="currentTab" :key="currentTab" ref="currentChildRef" :lang=lang />
     </main>
   </div>
 </template>
@@ -64,16 +64,36 @@ export default {
     return {
       selectedLanguage: 'cn',
       langList,
-      lang: cn
+      lang: cn,
+      currentChild: null
     }
   },
   methods:{
+    setActive(componentName) {
+      this.currentTab = componentName
+      
+      // 确保在下一个DOM更新周期后捕获实例
+      this.$nextTick(() => {
+        this.currentChild = this.$refs.currentChildRef
+      })
+    },
     changeLanguage() {
       this.lang = this.langList[this.selectedLanguage].data
       console.log('切换语言到:', this.selectedLanguage)
-      const currentChild = this.$options.components[this.currentTab]
-      this.$nextTick(()=>{currentChild.methods.changeLang();})
+      console.log(this.currentChild)
+      this.$nextTick(() => {
+        if (this.currentChild && typeof this.currentChild.changeLang === 'function') {
+          this.currentChild.changeLang()
+        } else {
+          console.warn('当前子组件不可用或方法不存在')
+        }
+      })
     },
+  },
+  mounted() {
+    this.$nextTick(() => {
+      this.currentChild = this.$refs.currentChildRef
+    })
   },
 }
 </script>
