@@ -8,29 +8,29 @@
           v-for="tab in tabs"
           :key="tab.name" @click="handleTabClick(tab)" :class="{ active: currentTab === tab.component }"
         >
-          {{ tab.name }}
+          {{ lang.labels[tab.name] }}
         </button>
       </div>
 
       <!-- 语言选择下拉框 -->
       <select v-model="selectedLanguage" @change="changeLanguage" class="language-select">
-        <option value="zh">中文</option>
-        <option value="en">English</option>
+        <option v-for="item,name in langList" :value="name">{{ item.text }}</option>
       </select>
     </nav>
 
     <!-- 内容区域 -->
     <main class="content">
-      <component :is="currentTab" />
+      <component :is="currentTab" :key="currentTab" ref="currentTabRef" :lang=lang />
     </main>
   </div>
 </template>
 
 <script>
-import { ref, computed } from 'vue' // 确保这里导入了 computed
 import chart from '@/components/chart.vue'
 import list from '@/components/list.vue'
 import ttk_ttm from './ttk_ttm.vue'
+import cn from '@/data/cn.js'
+import en from '@/data/en.js'
 
 export default {
   components: {
@@ -38,53 +38,56 @@ export default {
     list,
     ttk_ttm
   },
-  setup() {
-    const currentTab = ref('chart')
-    const selectedLanguage = ref('zh')
+  data() {
+    const langList = {
+      "cn":{text:'中文',data:cn},
+      "en":{text:'English',data:en}
+    }
     const tabs = [
-      { name: 'TTK-命中率表', component: 'chart' },
-      { name: 'TTK-时间表', component: 'ttk_ttm' },
-      { name: '命中率自测', component: 'list' },
-      { name: '原始文档链接', url: 'https://docs.qq.com/sheet/DVHRMRG9Jdm5Udm10?tab=000001' }, // 正在架设传送门
+      { name: 'ttk_curve', component: 'chart' },
+      { name: 'self_test', component: 'list' },
+      { name: 'ttk_ttm', component: 'scatter' },
+      { name: 'ori_doc', url: 'https://docs.qq.com/sheet/DVHRMRG9Jdm5Udm10?tab=000001'}
     ]
 
-    const currentTabComponent = computed(() => {
-      const activeTab = tabs.find(tab => tab.component === currentTab.value);
-      if (activeTab && activeTab.component) {
-        switch (activeTab.component) {
-          case 'chart': return chart;
-          case 'list': return list;
-          case 'ttk_ttm': return ttk_ttm;
-          default: return null; // 默认返回 null，不渲染任何组件
-        }
-      }
-      return null; // 如果没有找到匹配的组件，返回 null
-    });
+    return {
+      selectedLanguage: 'cn',
+      langList,
+      lang: cn,
 
-    const handleTabClick = (tab) => {
+      tabs,
+      currentTab: 'chart',
+      currentTabComponent: null
+    }
+  },
+  methods:{
+    handleTabClick(tab) {
       if (tab.url) {
         window.open(tab.url, '_blank');
       } else {
         currentTab.value = tab.component;
       }
-    };
-
-
-    const changeLanguage = () => {
-      // 这里可以添加实际的语言切换逻辑
-      console.log('切换语言到:', selectedLanguage.value)
-    }
-
-    return {
-      currentTab,
-      selectedLanguage,
-      tabs,
-      changeLanguage,
-
-      currentTabComponent, 
-      handleTabClick 
-    }
-  }
+      this.$nextTick(() => {
+        this.currentChild = this.$refs.currentChildRef
+      })
+    },
+    changeLanguage() {
+      this.lang = this.langList[this.selectedLanguage].data
+      console.log('切换语言到:', this.selectedLanguage)
+      this.$nextTick(() => {
+        if (this.currentTabComponent && typeof this.currentTabComponent.changeLang === 'function') {
+          this.currentTabComponent.changeLang()
+        } else {
+          console.warn('当前子组件不可用或方法不存在')
+        }
+      })
+    },
+  },
+  mounted() {
+    this.$nextTick(() => {
+      this.currentTabComponent = this.$refs.currentTabRef // 初始化 currentTabComponent
+    })
+  },
 }
 </script>
 
