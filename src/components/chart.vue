@@ -51,34 +51,7 @@ const DEFAULT_OPTIONS = {
     textStyle: {
       color: '#fff'
     },
-    formatter: function (params) {
-      if (!params || params.length === 0) return '';
-      
-      // 获取X轴值（命中率）
-      const hitRate = params[0].value[0];
-      let tooltipContent = `<div style="font-weight: bold; margin-bottom: 8px;">命中率: ${hitRate.toFixed(1)}%</div>`;
-      
-      // 按TTK值排序，显示最优性能的武器
-      const sortedParams = params
-        .filter(param => param.value && param.value[1] !== null)
-        .sort((a, b) => a.value[1] - b.value[1]);
-      
-      sortedParams.forEach((param, index) => {
-        const ttk = param.value[1];
-        const weaponName = param.seriesName;
-        const color = param.color;
-        
-        tooltipContent += `
-          <div style="display: flex; align-items: center; margin: 4px 0;">
-            <span style="display: inline-block; width: 10px; height: 10px; background-color: ${color}; border-radius: 50%; margin-right: 8px;"></span>
-            <span style="flex: 1;">${weaponName}</span>
-            <span style="font-weight: bold; color: ${index === 0 ? '#50BBAA' : '#fff'};">${ttk.toFixed(3)}s</span>
-          </div>
-        `;
-      });
-      
-      return tooltipContent;
-    },
+    formatter: function (){}, // 插入方法移至updateAxisRange中,以便更新标签文本
     enterable: true, // 允许鼠标进入tooltip区域
     triggerOn: 'mousemove', // 鼠标移动时触发
     alwaysShowContent: false
@@ -117,7 +90,7 @@ const DEFAULT_OPTIONS = {
     minInterval: 0.3,
     splitNumber: 10
   },
-  series: chartDataFormatter(ttks, names),
+  series: [], // 不设置初始值，以便初始化时读取language
   dataZoom: [
     {
       type: 'inside',
@@ -126,7 +99,8 @@ const DEFAULT_OPTIONS = {
       end: 100,
       zoomOnMouseWheel: true,
       moveOnMouseMove: true,
-      moveOnMouseWheel: false
+      moveOnMouseWheel: false,
+      filterMode: 'none' // 不删除范围外的点，以免折线断开，下同
     },
     {
       type: 'slider', // 滑动条型数据区域缩放
@@ -135,7 +109,8 @@ const DEFAULT_OPTIONS = {
       start: 0,     // 根据数据范围调整起始值（约37%）
       end: 100,      // 结束值保持100%
       height: 30,    // 滑动条的高度
-      bottom: 10      // 滑动条的位置
+      bottom: 10,      // 滑动条的位置
+      filterMode: 'none'
     }
   ]
 };
@@ -144,7 +119,7 @@ export default {
   data() {
     return {
       chartInstance: null, // 存储图表实例
-      ttk: chartDataFormatter(ttks, names),
+      ttk: chartDataFormatter(ttks, this.lang.names),
       name: names,
       classes: classes,
       filter: {},
@@ -153,6 +128,9 @@ export default {
       transformType: 'none', // 数据变换类型
       transformParams: {}, // 变换参数
     };
+  },
+  props: { 
+    lang:{type: Object, required: true}
   },
   async mounted() {
     this.allCheckboxHeight = this.$refs.all_checkbox.offsetHeight;
@@ -175,9 +153,36 @@ export default {
 
       if (!option) return inputOption;
 
-      const series = option.series;
+      const series = (!option.series || option.series.length === 0) ? this.ttk : option.series;
 
-      if (!series || series.length === 0) return inputOption;
+      option.tooltip.formatter = (params)=> {
+        if (!params || params.length === 0) return '';
+        
+        // 获取X轴值（命中率）
+        const hitRate = params[0].value[0];
+        let tooltipContent = `<div style="font-weight: bold; margin-bottom: 8px;">${this.lang.labels['hit_rate']}: ${hitRate.toFixed(1)}%</div>`;
+        
+        // 按TTK值排序，显示最优性能的武器
+        const sortedParams = params
+          .filter(param => param.value && param.value[1] !== null)
+          .sort((a, b) => a.value[1] - b.value[1]);
+        
+        sortedParams.forEach((param, index) => {
+          const ttk = param.value[1];
+          const weaponName = param.seriesName;
+          const color = param.color;
+          
+          tooltipContent += `
+            <div style="display: flex; align-items: center; margin: 4px 0;">
+              <span style="display: inline-block; width: 10px; height: 10px; background-color: ${color}; border-radius: 50%; margin-right: 8px;"></span>
+              <span style="flex: 1;">${weaponName}</span>
+              <span style="font-weight: bold; color: ${index === 0 ? '#50BBAA' : '#fff'};">${ttk.toFixed(3)}s</span>
+            </div>
+          `;
+        });
+        
+        return tooltipContent;
+      }
 
       // 收集所有系列的X值以计算实际数据范围
       let allXValues = [];
@@ -202,7 +207,7 @@ export default {
       });
 
       // 创建新的option对象
-      let newOption = { ...option };
+      let newOption = { ...option,series: series };
 
             // 根据数据范围设置X轴dataZoom的起始值（仅在非dataZoom事件触发时）
       if (!skipDataZoomCalculation && allXValues.length > 0) {
@@ -330,7 +335,6 @@ export default {
       this.ALL = true
     },
     changeFilter(key) {
-      console.log(this.filter)
       if (this.filter.hasOwnProperty(key)) {
         this.filter[key] = !this.filter[key];
         this.handleFilter();
@@ -345,6 +349,7 @@ export default {
         this.ALL = true;
         // 使用全部数据，直接让updateAxisRange处理
         const updatedOption = this.updateAxisRange(DEFAULT_OPTIONS);
+        updatedOption.series = this.ttk;
         this.chartInstance.setOption(updatedOption, true);
       } else {
         this.ALL = false;
@@ -382,7 +387,7 @@ export default {
     initChart() {
       // 初始化图表
       this.chartInstance = markRaw(echarts.init(this.$refs.chartContainer, "dark"));
-
+      
       // 直接使用updateAxisRange来处理初始配置
       const initialOptions = this.updateAxisRange(DEFAULT_OPTIONS);
       this.chartInstance.setOption(initialOptions);
@@ -398,6 +403,10 @@ export default {
         if (this.chartInstance) this.chartInstance.resize();
       });
     },
+    changeLang(){
+      this.ttk = chartDataFormatter(ttks, this.lang.names)
+      this.handleFilter() // 借用filter重载图表,顺便还能保留筛选
+    }
   }
 };
 </script>
@@ -406,9 +415,9 @@ export default {
     <div ref="chartContainer" class="chartContainer" style="height: 100%;width: 100%;"></div>
 
   <div class="checkbox_container">
-    <div v-for="(item, index) in classes" :key="index" class="checkbox">
+    <div v-for="(name, index) in lang.classes" :key="index" class="checkbox">
       <button class="checkbtn" :class="{ active: this.filter[index] }" @click="changeFilter(index)">
-        <span class="label">{{ index }}</span>
+        <span class="label">{{ name }}</span>
       </button>
     </div>
     <div ref="all_checkbox" class="checkbox">
@@ -416,7 +425,7 @@ export default {
         <span class="label">ALL</span>
       </button>
     </div>
-    </div>
+  </div>
   </div>
 </template>
 <style scoped>

@@ -10,7 +10,7 @@ export default {
       return acc;
     }, {});
     return {
-      name : names,
+      name: this.lang.names,
       formData,
       jsonText: "",
       chartInstance: null,
@@ -35,6 +35,9 @@ export default {
       this.chartInstance.dispose();
       this.chartInstance = null;
     }
+  },
+  props: { 
+    lang:{type: Object, required: true}
   },
   methods: {
     // 复制到剪贴板
@@ -173,6 +176,10 @@ export default {
         if (this.chartInstance) this.chartInstance.resize();
       });
     },
+    changeLang() {
+      this.name = this.lang.names;
+      this.generate();
+    }
   }
 };
 </script>
@@ -194,7 +201,7 @@ export default {
     </div>
 
     <div class="button-group" style="margin-top: 20px;">
-      <button @click="generate" :disabled="isFormDataEmpty" :class="{ 'disabled-button': isFormDataEmpty }" style="height: 100px; width: 100px; font-size: 20px;">生成<br>→</button>
+      <button @click="generate" :disabled="isFormDataEmpty" :class="{ 'disabled-button': isFormDataEmpty }" style="height: 100px; width: 100px; font-size: 20px;">{{ lang.labels["generate"] }}<br>→</button>
     </div>
 
     <div class="json-section">
@@ -203,12 +210,12 @@ export default {
       </div>
       <textarea
         v-model="jsonText" 
-        placeholder= "这里可以粘贴JSON数据"
+        :placeholder= "this.lang.labels['paste_here']"
         class="json-textarea"
       ></textarea>
       <div class="button-group">
-        <button @click="copyToClipboard" :disabled="isTextEmpty" :class="{ 'disabled-button': isTextEmpty }">复制到剪贴板</button>
-        <button @click="parseAndUpdate" :disabled="isTextEmpty" :class="{ 'disabled-button': isTextEmpty }">读取并更新表单</button>
+        <button @click="copyToClipboard" :disabled="isTextEmpty" :class="{ 'disabled-button': isTextEmpty }">{{ lang.labels["copy"] }}</button>
+        <button @click="parseAndUpdate" :disabled="isTextEmpty" :class="{ 'disabled-button': isTextEmpty }">{{ lang.labels["parse_json"] }}</button>
       </div>
     </div>
     
