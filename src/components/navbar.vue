@@ -45,8 +45,8 @@ export default {
     }
     const tabs = [
       { name: 'ttk_curve', component: 'chart' },
+      { name: 'ttk_ttm', component: 'ttk_ttm' },
       { name: 'self_test', component: 'list' },
-      { name: 'ttk_ttm', component: 'scatter' },
       { name: 'ori_doc', url: 'https://docs.qq.com/sheet/DVHRMRG9Jdm5Udm10?tab=000001'}
     ]
 
@@ -65,10 +65,10 @@ export default {
       if (tab.url) {
         window.open(tab.url, '_blank');
       } else {
-        currentTab.value = tab.component;
+        this.currentTab = tab.component;
       }
       this.$nextTick(() => {
-        this.currentChild = this.$refs.currentChildRef
+        this.currentTabComponent = this.$refs.currentTabRef
       })
     },
     changeLanguage() {
