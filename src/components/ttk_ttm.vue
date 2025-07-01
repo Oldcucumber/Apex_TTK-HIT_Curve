@@ -46,8 +46,8 @@ const DEFAULT_OPTIONS = {
     grid: {
         top: '20px',
         right: '350px',
-        bottom: '100px', // 增加底部边距以缩小图表高度
-        left: '150px',
+        bottom: '90px', // 增加底部边距以缩小图表高度
+        left: '100px',
         containLabel: false
     },
     tooltip: {
@@ -90,7 +90,7 @@ const DEFAULT_OPTIONS = {
         nameTextStyle: { fontSize: 16, color: '#ccc' },
         axisLabel: { formatter: '{value} s', color: '#ccc' },
         splitLine: { lineStyle: { color: '#444' } },
-        interval: 0.2 // 强制刻度步长为 0.5
+        splitNumber: 10, // 分割成10个区间，避免过密，下同
     },
     yAxis: {
         type: 'value',
@@ -100,12 +100,12 @@ const DEFAULT_OPTIONS = {
         nameTextStyle: { fontSize: 16, color: '#ccc' },
         axisLabel: { formatter: '{value} s', color: '#ccc' },
         splitLine: { lineStyle: { color: '#444' } },
-        interval: 1 // 强制刻度步长为 0.5
+        splitNumber: 10,
     },
     dataZoom: [
         { type: 'inside', xAxisIndex: 0 },
         { type: 'inside', yAxisIndex: 0 },
-        { type: 'slider', xAxisIndex: 0, bottom: 20, height: 25 },
+        { type: 'slider', xAxisIndex: 0, bottom: 10, height: 25 },
     ],
 };
 
@@ -248,6 +248,36 @@ export default {
 
 <template>
     <div class="main-container">
+        <div class="icon-container">
+            <!-- 使用SVG绘制所有箭头 -->
+            <svg width="300" height="300" viewBox="0 0 300 300">
+                <!-- 十字箭头 -->
+                <line class="cross-arrow" x1="105" y1="150" x2="195" y2="150" />
+                <line class="cross-arrow" x1="150" y1="105" x2="150" y2="195" />
+                <!-- 上箭头 -->
+                <polygon class="arrow-head" points="140,105 150,95 160,105" />
+                <!-- 下箭头 -->
+                <polygon class="arrow-head" points="140,195 150,205 160,195" />
+                <!-- 左箭头 -->
+                <polygon class="arrow-head" points="105,140 95,150 105,160" />
+                <!-- 右箭头 -->
+                <polygon class="arrow-head" points="195,140 205,150 195,160" />
+                <!-- 中心点 -->
+                <circle cx="150" cy="150" r="4" fill="#50BBAA" />
+                <!-- 斜双向箭头 -->
+                <line class="diagonal-arrow" x1="104" y1="104" x2="196" y2="196" />
+                <polygon class="arrow-head1" points="110,95 95,95 95,110" />
+                <polygon class="arrow-head1" points="190,205 205,205 205,190" />
+            </svg>
+
+            <!-- 文字标签 -->
+            <div class="arrow-label" style="top: 70px; left: 120px;">容错高</div>
+            <div class="arrow-label" style="top: 204px; left: 120px;">容错低</div>
+            <div class="arrow-label" style="top: 137px; left: 40px;">伤害高</div>
+            <div class="arrow-label" style="top: 137px; left: 202px;">伤害低</div>
+            <div class="arrow-label" style="top: 74px; left: 58px;">超模</div>
+            <div class="arrow-label" style="top: 200px; left: 198px;">废物</div>
+        </div>
         <div ref="chartContainer" class="chart-container"></div>
         <div class="controls-container">
             <div v-for="category in categories" :key="category" class="checkbox">
@@ -267,10 +297,20 @@ export default {
 <style scoped>
 .main-container {
     width: 100%;
-    height: 100vh;
+    height: 100%;
     display: flex;
     flex-direction: column;
     background-color: #212121;
+    position: relative;
+}
+
+.icon-container { 
+    position: absolute; /* 从文档流中移除 */
+    top: 20px;         /* 相对于父元素定位 */
+    left: 100px;
+    z-index: 10;
+    width: 300px;
+    height: 300px;
 }
 
 .chart-container {
@@ -283,26 +323,29 @@ export default {
 
 .controls-container {
     flex-shrink: 0;
+    width: 100%;
     /* 防止控制容器被压缩 */
     display: flex;
     flex-direction: row;
     align-items: center;
-    justify-content: center;
-    flex-wrap: wrap;
-    padding: 10px 0 20px 0;
+    justify-content: space-between;
+    flex-wrap: nowrap;
+    padding: 0 20px;
     background-color: #212121;
+    overflow-x: auto;
+    box-sizing: border-box;
 }
 
 .checkbox {
     display: flex;
     align-items: center;
-    padding: 10px 15px;
+    padding: 15px 5px;
     font-family: Arial, sans-serif;
 }
 
 .checkbtn {
-    width: 168px;
-    height: 100px;
+    width: 140px;
+    height: 90px;
     background: #212121;
     outline: 0 solid #307B6E;
     border-radius: 15px;
@@ -323,15 +366,54 @@ export default {
 }
 
 .checkbtn:hover {
-    outline-width: 8px;
+    outline-width: 5px;
 }
 
 .checkbtn.active {
-    outline-width: 8px;
+    outline-width: 5px;
     outline-color: #50BBAA;
 }
 
 .checkbtn.active .label {
     color: #ffffff;
+}
+
+/* 十字箭头样式 */
+.cross-arrow {
+    stroke: #ffffff5f;
+    stroke-width: 3;
+    stroke-linecap: butt;
+    stroke-linejoin: butt;
+    fill: none;
+}
+
+/* 斜双向箭头样式 */
+.diagonal-arrow {
+    stroke: #50BBAA7f;
+    stroke-width: 4;
+    stroke-linecap: square;
+    stroke-linejoin: square;
+    fill: none;
+}
+
+/* 箭头头部样式 */
+.arrow-head {
+    fill: #ffffff5f;
+}
+.arrow-head1 {
+    fill: #50BBAA7f;
+}
+
+/* 标签样式 */
+.arrow-label {
+    position: absolute;
+    font-size: 14px;
+    font-weight: bold;
+    color: rgba(255, 255, 255, 0.5);
+    padding: 3px 8px;
+    border-radius: 4px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    z-index: 10;
 }
 </style>

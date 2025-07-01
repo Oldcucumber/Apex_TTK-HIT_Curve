@@ -145,7 +145,7 @@ button.active {
 .content {
   margin-top: 70px;
   /* 留出导航栏空间 */
-  padding: 0.5rem;
+  padding: 0;
   height: calc(100vh - 70px);
   box-sizing: border-box;
   overflow: auto;
