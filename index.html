@@ -93,6 +93,11 @@
           color: #bdbdbd;
       }
 
+      .contentBody {
+        color: #ffffff3f;
+        text-align: center;
+      }
+
     </style>
 
     <footer class="site-footer">
@@ -128,6 +133,12 @@
           <p>2025/7/1</p>
         </div>
     </footer>
+    <!-- 彩蛋 -->
+    <div class="container">
+      <div class="target" id = "target">
+        <div id="contentBody" class="contentBody"></div>
+      </div>
+    </div>
       <!-- 备案信息部分 -->
       <div class="footer-legal">
         <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer">鄂ICP备2025116017号-1</a>
@@ -137,6 +148,58 @@
     <!-- ====================================================================== -->
     <!-- ^^^^^^^^ EOF ^^^^^^^^ -->
     <!-- ====================================================================== -->
+    <script>
+      // 内容数组
+      const contents = [
+        'Exception in tread "main"  java.lang.NullPointerException',
+        'RuntimeError: CUDA error: out of memory',
+        "ModuleNotFoundError: No module named 'torch'",
+        'Segmentation fault (core dumped)',
+        '少女折寿中......',
+        '喔唷，崩溃啦',
+        '你的设备遇到问题，需要重启。<br>我们只收集某些错误信息，然后为你重新启动',
+        'Your device ran into a problem and needs to restart. <br> Stop code: 0xc000007b',
+        "The program can't start because VCRUNTIME140.dll is missing from your computer.",
+        'Bind for 0.0.0.0:8080 failed: port is already allocated',
+        'Permission denied (publickey)',
+        'Kernel panic - not syncing: VFS: Unable to mount root fs on unknown-block(0,0)',
+        '500 Internal Server Error',
+        'Error: Cannot find module \'C:\\Program Files\\nodejs\\node_modules\\npm\\bin\\npm-cli.js\'',
+        'Connection to localhost:5432 refused. Is the server running on that host and accepting TCP/IP connections?'
+      ];
 
+      // 初始化状态
+      const totalCount = contents.length;
+
+      // 获取DOM元素
+      const targetElement = document.getElementById('target');
+      const contentBodyElement = document.getElementById('contentBody');
+
+      // 更新目标元素内容的函数
+      function updateContent() {
+        let randomInt = Math.floor(Math.random() * totalCount )
+        const content = contents[randomInt];
+        // 根据类型更新内容
+        let bodyHTML = '<p>'+content+'</p>';
+        contentBodyElement.innerHTML = bodyHTML;
+        console.log(randomInt)
+      }
+
+      // 初始化内容
+      updateContent();
+
+      // 创建Intersection Observer
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            // 更新内容
+            updateContent();
+          }
+        });
+      });
+
+      // 开始观察目标元素
+      observer.observe(targetElement);
+    </script>
   </body>
 </html>
