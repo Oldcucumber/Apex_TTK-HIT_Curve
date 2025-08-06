@@ -6,36 +6,41 @@ const ttk_ttm = {
       "TTM": 1.67
     },
     "猎兽冲锋枪5连发": {
-      "rank": 1, // Note: Rank is the same as Full Auto, but different TTK/TTM
+      "rank": 1,
       "TTK": 1.01,
       "TTM": 1.89
     },
-    "转换者冲锋枪": {
+    "空投 双持P2020": {
       "rank": 2,
+      "TTK": 0.89,
+      "TTM": 1.78
+    },
+    "转换者冲锋枪": {
+      "rank": 3,
       "TTK": 1.10,
       "TTM": 1.70
     },
-    "P2020（双持）": {
-      "rank": 3,
-      "TTK": 0.98,
-      "TTM": 1.59
-    },
-    "电能冲锋枪": {
+    "电能冲锋枪默认": {
       "rank": 4,
       "TTK": 0.99,
       "TTM": 1.16
     },
+    "电能冲锋枪彩弹": {
+      "rank": 4,
+      "TTK": 0.99,
+      "TTM": 1.32
+    },
     "RE45": {
       "rank": 5,
-      "TTK": 1.08,
-      "TTM": 0.85
+      "TTK": 0.83,
+      "TTM": 1.13
     },
     "C.A.R冲锋枪": {
       "rank": 6,
       "TTK": 0.90,
       "TTM": 0.84
     },
-    "R-99（出空投）": {
+    "R-99": {
       "rank": 7,
       "TTK": 0.85,
       "TTM": 0.62
@@ -57,15 +62,15 @@ const ttk_ttm = {
       "TTK": 1.43,
       "TTM": 3.18
     },
-    "哈沃克全自动": {
-      "rank": 2,
-      "TTK": 0.83,
-      "TTM": 1.75
-    },
     "平行步枪": {
-      "rank": 3,
+      "rank": 2,
       "TTK": 0.99,
       "TTM": 1.78
+    },
+    "哈沃克": {
+      "rank": 3,
+      "TTK": 0.83,
+      "TTM": 1.75
     },
     "复仇女神预热4枪（MAX）": {
       "rank": 4,
@@ -99,25 +104,30 @@ const ttk_ttm = {
       "TTK": 1.20,
       "TTM": 6.60
     },
-    "喷火轻机枪": {
+    "喷火轻机枪默认": {
       "rank": 3,
       "TTK": 1.00,
       "TTM": 4.44
     },
-    "专注轻机枪普通": {
+    "喷火轻机枪彩弹": {
+      "rank": 3,
+      "TTK": 1.00,
+      "TTM": 4.67
+    },
+    "L-star": {
       "rank": 4,
+      "TTK": 1.00,
+      "TTM": 1.70
+    },
+    "专注轻机枪普通": {
+      "rank": 5,
       "TTK": 1.33,
       "TTM": 1.48
     },
     "专注轻机枪涡轮": {
-      "rank": 4,
+      "rank": 5,
       "TTK": 1.07,
       "TTM": 1.46
-    },
-    "L-star": {
-      "rank": 5,
-      "TTK": 1.00,
-      "TTM": 1.70
     }
   },
   "霰弹枪": {
@@ -136,24 +146,29 @@ const ttk_ttm = {
       "TTK": 1.52,
       "TTM": 1.52
     },
-    "EVA-8紫枪栓": {
+    "EVA-8默认紫枪栓": {
       "rank": 4,
       "TTK": 0.93,
       "TTM": 1.24
     },
+    "EVA-8彩弹紫枪栓": {
+      "rank": 4,
+      "TTK": 0.93,
+      "TTM": 1.55
+    },
     "莫桑比克（单持）紫枪栓": {
       "rank": 5,
-      "TTK": 0.94,
-      "TTM": 0.31
+      "TTK": 0.95,
+      "TTM": 0.32
     }
   },
-  "神射手": { // Category name corrected based on your data
-    "波赛克充能手雷": { // Assuming "充能手雷" is a specific mode/context
+  "神射手": {
+    "波赛克充能手雷": {
       "rank": 1,
       "TTK": 1.68,
       "TTM": 31.08
     },
-    "波赛克未充手雷": { // Differentiating from the "充能手雷" entry
+    "波赛克未充手雷": {
       "rank": 1,
       "TTK": 2.52,
       "TTM": 30.24
