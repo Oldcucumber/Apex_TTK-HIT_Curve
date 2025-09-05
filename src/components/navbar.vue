@@ -26,17 +26,19 @@
 </template>
 
 <script>
-import chart from '@/components/chart.vue'
-import list from '@/components/list.vue'
+import chart from './chart.vue'
+import list from './list.vue'
 import ttk_ttm from './ttk_ttm.vue'
-import cn from '@/data/cn.js'
-import en from '@/data/en.js'
+import flex from './flex.vue'
+import cn from '../data/cn.js'
+import en from '../data/en.js'
 
 export default {
   components: {
     chart,
     list,
-    ttk_ttm
+    ttk_ttm,
+    flex
   },
   data() {
     const langList = {
@@ -46,6 +48,7 @@ export default {
     const tabs = [
       { name: 'ttk_curve', component: 'chart' },
       { name: 'ttk_ttm', component: 'ttk_ttm' },
+      { name: 'flex', component: 'flex' }, // 新增灵活性入口
       { name: 'self_test', component: 'list' },
       { name: 'ori_doc', url: 'https://docs.qq.com/sheet/DVHRMRG9Jdm5Udm10?tab=000001'}
     ]

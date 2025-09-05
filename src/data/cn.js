@@ -48,6 +48,7 @@ const cn = {
         "ttk_curve":"TTK-命中率表",
         "self_test":"命中率自测",
         "ttk_ttm":"TTK-TTM表",
+        "flex":"灵活性柱状图",
         "ori_doc":"原始文档链接",
         "hit_rate":"命中率",
         "generate":"生成",

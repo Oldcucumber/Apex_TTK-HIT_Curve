@@ -48,6 +48,7 @@ const cn = {
         "ttk_curve":"TTK-HIT Curve",
         "self_test":"TTK self test",
         "ttk_ttm":"TTK-TTM Table",
+        "flex":"Flexibility Bar Chart",
         "ori_doc":"Original Document Link",
         "hit_rate":"Hit Rate",
         "generate":"Generate",
