@@ -5,151 +5,188 @@
     <link rel="icon" href="favicon.ico">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Apex_TTK-HIT_Curve</title>
-    <!-- 为了更好的字体渲染，建议引入字体 -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
-  </head>
-  <body style="background-color: #212121; margin: 0; padding: 0;">
-  
-    <!-- Vue 应用挂载点 -->
-    <div id="app"></div>
-    <script type="module" src="/src/main.js"></script>
-    
-    <!-- ====================================================================== -->
-    <!-- vvvvvvvv 页脚代码 (此部分为独立的HTML代码，不与Vue应用冲突) vvvvvvvv -->
-    <!-- ====================================================================== -->
-
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
-      /* 页脚专属样式，确保不与Vue应用冲突 */
       .site-footer {
+        width: min(1480px, calc(100% - 32px));
+        margin: 0 auto 32px;
+        padding-bottom: 20px;
+        color: var(--md-sys-color-on-surface, #e2e6ee);
         font-family: 'Roboto', 'Noto Sans SC', sans-serif;
-        background-color: #2c2c2e; /* 稍亮于背景的暗色，符合MD3层次感 */
-        color: #e0e0e0;
-        padding: 40px 24px 20px;
-        border-top: 1px solid rgba(255, 255, 255, 0.1);
-        width: 100%;
-        box-sizing: border-box;
       }
 
-      .site-footer a {
-        color: #82b1ff; /* Material Design 蓝色，在暗色背景下清晰可见 */
-        text-decoration: none;
-        transition: color 0.3s ease, text-decoration 0.3s ease;
+      .footer-shell {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 18px;
       }
 
-      .site-footer a:hover {
-        color: #a6cfff;
-        text-decoration: underline;
-      }
-      
-      .footer-container {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: space-around; /* 在大屏幕上均匀分布 */
-        gap: 30px; /* 各个部分之间的间距 */
-        max-width: 1200px;
-        margin: 0 auto;
-        padding-bottom: 24px;
-      }
-
-      .footer-section {
-        flex: 1;
-        min-width: 220px; /* 确保在小屏幕上不会被过度挤压 */
-      }
-      
-      .footer-section h3 {
-        font-size: 16px;
-        font-weight: 500;
-        color: #bdbdbd;
-        margin: 0 0 16px 0;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        padding-bottom: 8px;
+      .footer-card {
+        padding: 24px;
+        border-radius: 32px;
+        border: 1px solid rgba(127, 139, 159, 0.18);
+        background: linear-gradient(
+          180deg,
+          rgba(34, 44, 58, 0.94) 0%,
+          rgba(23, 31, 42, 0.88) 100%
+        );
+        box-shadow:
+          0 24px 60px rgba(3, 7, 13, 0.42),
+          inset 0 1px 0 rgba(255, 255, 255, 0.04);
+        backdrop-filter: blur(18px);
       }
 
-      .footer-section p, .footer-section ul {
+      .footer-card h3 {
+        margin: 0 0 16px;
+        font-size: 1rem;
+      }
+
+      .footer-card p,
+      .footer-card ul {
         margin: 0;
         padding: 0;
         list-style: none;
+        line-height: 1.7;
+        color: rgba(226, 230, 238, 0.78);
       }
 
-      .footer-section ul li {
-        margin-bottom: 8px;
+      .footer-card li + li {
+        margin-top: 8px;
       }
 
-      .footer-legal {
-        text-align: center;
-        padding-top: 20px;
-        margin-top: 20px;
-        border-top: 1px solid rgba(255, 255, 255, 0.1);
-        font-size: 12px;
-        color: #9e9e9e;
+      .footer-card a {
+        color: var(--md-sys-color-primary, #97cbff);
       }
-      
-      .footer-legal a {
-          color: #9e9e9e;
+
+      .footer-card a:hover {
+        color: #c8e2ff;
       }
-      .footer-legal a:hover {
-          color: #bdbdbd;
+
+      .footer-eyebrow {
+        display: block;
+        margin-bottom: 10px;
+        font-size: 0.74rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: rgba(151, 203, 255, 0.84);
+      }
+
+      .footer-highlight {
+        margin-top: 16px;
+        padding: 14px 16px;
+        border-radius: 22px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(127, 139, 159, 0.18);
+      }
+
+      .easter-shell {
+        margin-top: 18px;
+        padding: 22px 24px;
+        border-radius: 28px;
+        border: 1px solid rgba(127, 139, 159, 0.18);
+        background: rgba(255, 255, 255, 0.03);
+      }
+
+      .easter-label {
+        margin: 0 0 10px;
+        font-size: 0.78rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgba(166, 176, 194, 0.82);
+      }
+
+      .target {
+        min-height: 64px;
+        display: grid;
+        align-items: center;
+        padding: 16px 18px;
+        border-radius: 20px;
+        background: rgba(12, 17, 24, 0.82);
+        border: 1px solid rgba(127, 139, 159, 0.18);
       }
 
       .contentBody {
-        color: #ffffff3f;
-        text-align: center;
+        margin: 0;
+        color: rgba(226, 230, 238, 0.68);
       }
 
+      .contentBody p {
+        margin: 0;
+      }
+
+      .footer-legal {
+        margin-top: 14px;
+        text-align: center;
+        font-size: 0.78rem;
+        color: rgba(166, 176, 194, 0.82);
+      }
+
+      .footer-legal a {
+        color: rgba(166, 176, 194, 0.92);
+      }
+
+      @media (max-width: 960px) {
+        .site-footer {
+          width: min(100%, calc(100% - 20px));
+        }
+      }
     </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.js"></script>
 
     <footer class="site-footer">
-      <div class="footer-container">
-        
-        <!-- 项目地址部分 -->
-        <div class="footer-section">
+      <div class="footer-shell">
+        <section class="footer-card">
+          <span class="footer-eyebrow">Project</span>
           <h3>项目地址</h3>
           <p>
-            <a href="https://github.com/Oldcucumber/Apex_TTK-HIT_Curve" target="_blank" rel="noopener noreferrer">Apex_TTK-HIT_Curve on GitHub</a>
+            <a href="https://github.com/Oldcucumber/Apex_TTK-HIT_Curve" target="_blank" rel="noopener noreferrer">
+              Apex_TTK-HIT_Curve on GitHub
+            </a>
           </p>
-        </div>
+          <div class="footer-highlight">
+            GitHub Pages 目录仍使用 `/Apex_TTK-HIT_Curve/` 作为站点基路径。
+          </div>
+        </section>
 
-        <!-- ============================================== -->
-        <!-- vvvvv 名  人  堂 vvvvv -->
-        <!-- ============================================== -->
-        <div class="footer-section">
+        <section class="footer-card">
+          <span class="footer-eyebrow">People</span>
           <h3>贡献者</h3>
           <ul>
             <li><a href="https://github.com/Oldcucumber" target="_blank" rel="noopener noreferrer">Oldcucumber</a></li>
             <li><a href="https://github.com/Rebel-Gloria" target="_blank" rel="noopener noreferrer">Rebel-Gloria</a></li>
             <li><a href="https://github.com/StarVerseZ" target="_blank" rel="noopener noreferrer">StarVerseZ</a></li>
             <li><a href="https://github.com/passby6someone" target="_blank" rel="noopener noreferrer">passby6someone</a></li>
-            <!-- 如需添加新贡献者，请在此处复制上一行并修改信息 -->
           </ul>
-        </div>
-        <!-- ============================================== -->
-        <!-- ^^^^^ EOF  ^^^^^ -->
-        <!-- ============================================== -->
-        <!-- 最后摸鱼Time -->
-        <div class="footer-section">
-          <h3>数据最后更新时间(Last Update Time)</h3>
-          <p>2025/9/30</p>
-        </div>
-    </footer>
-    <!-- 彩蛋 -->
-    <div class="container">
-      <div class="target" id = "target">
-        <div id="contentBody" class="contentBody"></div>
+        </section>
+
+        <section class="footer-card">
+          <span class="footer-eyebrow">Data</span>
+          <h3>数据最后更新时间</h3>
+          <p>2025 / 9 / 30</p>
+          <div class="footer-highlight">
+            数据来源与原始思路请参考站内 “原始文档链接”。
+          </div>
+        </section>
       </div>
-    </div>
-      <!-- 备案信息部分 -->
+
+      <div class="easter-shell">
+        <p class="easter-label">System Log</p>
+        <div class="target" id="target">
+          <div id="contentBody" class="contentBody"></div>
+        </div>
+      </div>
+
       <div class="footer-legal">
         <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer">鄂ICP备2025116017号-1</a>
       </div>
+    </footer>
 
-
-    <!-- ====================================================================== -->
-    <!-- ^^^^^^^^ EOF ^^^^^^^^ -->
-    <!-- ====================================================================== -->
     <script>
-      // 内容数组
       const contents = [
         'Exception in tread "main"  java.lang.NullPointerException',
         'RuntimeError: CUDA error: out of memory',
@@ -166,40 +203,29 @@
         '500 Internal Server Error',
         'Error: Cannot find module \'C:\\Program Files\\nodejs\\node_modules\\npm\\bin\\npm-cli.js\'',
         'Connection to localhost:5432 refused. Is the server running on that host and accepting TCP/IP connections?'
-      ];
+      ]
 
-      // 初始化状态
-      const totalCount = contents.length;
+      const totalCount = contents.length
+      const targetElement = document.getElementById('target')
+      const contentBodyElement = document.getElementById('contentBody')
 
-      // 获取DOM元素
-      const targetElement = document.getElementById('target');
-      const contentBodyElement = document.getElementById('contentBody');
-
-      // 更新目标元素内容的函数
       function updateContent() {
-        let randomInt = Math.floor(Math.random() * totalCount )
-        const content = contents[randomInt];
-        // 根据类型更新内容
-        let bodyHTML = '<p>'+content+'</p>';
-        contentBodyElement.innerHTML = bodyHTML;
-        console.log(randomInt)
+        const randomInt = Math.floor(Math.random() * totalCount)
+        const content = contents[randomInt]
+        contentBodyElement.innerHTML = '<p>' + content + '</p>'
       }
 
-      // 初始化内容
-      updateContent();
+      updateContent()
 
-      // 创建Intersection Observer
       const observer = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
           if (entry.isIntersecting) {
-            // 更新内容
-            updateContent();
+            updateContent()
           }
-        });
-      });
+        })
+      })
 
-      // 开始观察目标元素
-      observer.observe(targetElement);
+      observer.observe(targetElement)
     </script>
   </body>
 </html>

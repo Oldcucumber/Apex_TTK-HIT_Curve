@@ -1,282 +1,450 @@
 <script>
-import * as echarts from 'echarts';
-import names from '@/data/id_name.js';
-import ttks from '@/data/id_stats.js';
+import * as echarts from 'echarts'
+import names from '@/data/id_name.js'
+import ttks from '@/data/id_stats.js'
+
+const CHART_THEME = {
+  valid: '#8de7c1',
+  invalid: '#ff8f8f',
+  surface: 'rgba(16, 22, 30, 0.94)',
+  text: '#e2e6ee',
+  muted: '#a6b0c2',
+  grid: 'rgba(166, 176, 194, 0.14)'
+}
 
 export default {
+  props: {
+    lang: { type: Object, required: true }
+  },
   data() {
     const formData = Object.keys(names).reduce((acc, cur) => {
-      acc[cur] = "";
-      return acc;
-    }, {});
+      acc[cur] = ''
+      return acc
+    }, {})
+
     return {
       name: this.lang.names,
       formData,
-      jsonText: "",
+      jsonText: '',
       chartInstance: null,
-      ttk: ttks,
-    };
+      ttk: ttks
+    }
   },
   computed: {
+    isEnglish() {
+      return this.lang?.labels?.hit_rate === 'Hit Rate'
+    },
+    uiText() {
+      return this.isEnglish
+        ? {
+            successCopy: 'JSON copied to clipboard.',
+            failedCopy: 'Copy failed. Check browser clipboard permission.',
+            invalidJson: 'Invalid JSON object.',
+            parseSuccess: 'JSON parsed and the form has been updated.',
+            parseFailed: 'JSON parse failed',
+            chartEmpty: 'No valid TTK value found for this entry',
+            summary: 'Weapons filled'
+          }
+        : {
+            successCopy: 'JSON 已复制到剪贴板。',
+            failedCopy: '复制失败，请检查浏览器剪贴板权限。',
+            invalidJson: '无效的 JSON 对象。',
+            parseSuccess: 'JSON 读取成功，表单已更新。',
+            parseFailed: 'JSON 解析失败',
+            chartEmpty: '未找到有效的 TTK 数值',
+            summary: '已填写武器数'
+          }
+    },
     isFormDataEmpty() {
-      return Object.values(this.formData).every(value => value === "");
+      return Object.values(this.formData).every(value => value === '')
     },
     isTextEmpty() {
-      return this.jsonText === "";
+      return this.jsonText === ''
+    },
+    filledCount() {
+      return Object.values(this.formData).filter(value => value !== '').length
     }
   },
   mounted() {
-    this.chartInstance = echarts.init(this.$refs.chartContainer2,"dark");
-
+    this.chartInstance = echarts.init(this.$refs.chartContainer2)
+    window.addEventListener('resize', this.handleWindowResize)
   },
   beforeUnmount() {
-    // 组件卸载前销毁图表
+    window.removeEventListener('resize', this.handleWindowResize)
     if (this.chartInstance) {
-      this.chartInstance.dispose();
-      this.chartInstance = null;
+      this.chartInstance.dispose()
+      this.chartInstance = null
     }
   },
-  props: { 
-    lang:{type: Object, required: true}
-  },
   methods: {
-    // 复制到剪贴板
+    handleWindowResize() {
+      if (!this.chartInstance) return
+      if (this.isFormDataEmpty) {
+        this.chartInstance.resize()
+      } else {
+        this.generate()
+      }
+    },
     copyToClipboard() {
-      // 使用现代剪贴板API
       navigator.clipboard.writeText(this.jsonText)
         .then(() => {
-          alert('数据已成功复制到剪贴板！');
+          alert(this.uiText.successCopy)
         })
-        .catch(err => {
-          console.error('复制失败:', err);
-          alert('复制失败，请检查控制台错误信息');
-        });
+        .catch(() => {
+          alert(this.uiText.failedCopy)
+        })
     },
-
-    // 解析并更新表单
     parseAndUpdate() {
       try {
-        const parsedData = JSON.parse(this.jsonText);
-        
-        // 数据有效性验证
-        if (typeof parsedData !== 'object' || parsedData === null) {
-          throw new Error('无效的JSON对象格式');
+        const parsedData = JSON.parse(this.jsonText)
+
+        if (typeof parsedData !== 'object' || parsedData === null || Array.isArray(parsedData)) {
+          throw new Error(this.uiText.invalidJson)
         }
 
-        // 只更新已存在的字段
-        for (var key in parsedData) {
-          if (this.formData.hasOwnProperty(key)) {
-            console.log(`更新字段：${key}`);
-            this.formData[key] = parsedData[key];
+        for (const key in parsedData) {
+          if (Object.prototype.hasOwnProperty.call(this.formData, key)) {
+            this.formData[key] = parsedData[key]
           }
         }
-        
-        alert('数据已成功更新到表单！');
+
+        if (!this.isFormDataEmpty) {
+          this.generate()
+        }
+
+        alert(this.uiText.parseSuccess)
       } catch (error) {
-        alert(`解析失败：${error.message}`);
+        alert(`${this.uiText.parseFailed}: ${error.message}`)
       }
     },
-    findTTK(name,percentage){
-      for (var i in this.ttk[name]){
-        if (this.ttk[name][i][0] <= (percentage/100)){
-          return this.ttk[name][i][1];
+    findTTK(name, percentage) {
+      for (const point of this.ttk[name] || []) {
+        if (point[0] <= percentage / 100) {
+          return point[1]
         }
       }
-      return 0;
+      return 0
     },
-    
-    generate() {
-      // 生成代码
-      const notEmptyKeys = Object.keys(this.formData).filter(key => this.formData[key] !== '');
-      const notEmptyJSON = {};
-      var series = [];
-      // 筛选出非空的formData（因为输入再删除后字典里面会有键但没有值）
-      for (var key of notEmptyKeys) {
-        notEmptyJSON[key] = this.formData[key];
-        if (this.findTTK(key,this.formData[key]) != 0){ // 这一步顺带进行ttk查找和分类
-          series.push({name:this.name[key],value:this.findTTK(key,this.formData[key]),category:1});
-        }else{
-          series.push({name:this.name[key],value:5,category:2});
-        }
-      }
-      const jsonString = JSON.stringify(notEmptyJSON, null, 2);
-      this.jsonText = jsonString;  // 更新文本域显示
-
-      // 生成图表
-      const processedData = [
-            // 类别1数据（排序）
-            ...series.filter(d => d.category === 1)
-                    .sort((a, b) => a.value - b.value),
-            // 类别2数据
-            ...series.filter(d => d.category === 2)
-        ].map(item => ({
-            ...item,
-            // 动态样式配置
-            itemStyle: {
-                color: item.category === 1 ? '#50BBAA' : '#ee6666'
-            }
-        }));
-
-      const option = {
+    buildChartOption(processedData) {
+      return {
+        animationDuration: 280,
+        backgroundColor: 'transparent',
         grid: {
-          top: '35px',
-          right: '180px',
-          bottom: '3%',
-          left: '10px',
+          top: 22,
+          right: 24,
+          bottom: 10,
+          left: 12,
           containLabel: true
         },
-        tooltip: { // 鼠标悬浮提示框
+        tooltip: {
           trigger: 'item',
-                formatter: params => {
-                    return params.data.category === 1 
-                        ? `${params.name}<br/>TTK：${params.value}s`
-                        : '一梭子打不死';
-                }
+          backgroundColor: CHART_THEME.surface,
+          borderColor: 'rgba(151, 203, 255, 0.28)',
+          borderWidth: 1,
+          textStyle: { color: CHART_THEME.text },
+          formatter: params => {
+            return params.data.category === 1
+              ? `${params.name}<br/>TTK: ${params.value}s`
+              : `${params.name}<br/>${this.uiText.chartEmpty}`
+          }
         },
-        backgroundColor: '#212121',
         xAxis: {
           type: 'value',
           position: 'top',
+          axisLabel: { color: CHART_THEME.muted },
+          axisLine: { lineStyle: { color: 'rgba(166, 176, 194, 0.3)' } },
+          splitLine: { lineStyle: { color: CHART_THEME.grid } }
         },
         yAxis: {
           type: 'category',
-          data: processedData.map(d => d.name),
+          data: processedData.map(item => item.name),
           inverse: true,
           axisLabel: {
-            show: true,
-            inside: true,
-            margin: 300, // 标签与轴线之间的距离，用了非常抽象的方法把标签移到右侧
+            color: CHART_THEME.text,
+            width: 220,
+            overflow: 'truncate'
           },
-          axisLine: {
-            show: true
-          },
-          axisTick: {
-            show: true
-          },
+          axisLine: { show: false },
+          axisTick: { show: false }
         },
-        series: [{
-          type: 'bar',
-          label: {
-            show: true,
-            position: 'right',
-            formatter: ({ data }) => data.category === 1 ? data.value : ''
-          },
-          data: processedData
-        }]
+        series: [
+          {
+            type: 'bar',
+            barMaxWidth: 18,
+            label: {
+              show: true,
+              position: 'right',
+              color: CHART_THEME.text,
+              formatter: ({ data }) => data.category === 1 ? data.value : ''
+            },
+            data: processedData
+          }
+        ]
       }
-      this.chartInstance.clear();
-      this.chartInstance.resize({
-        width: 480,
-        height: 100 + series.length * 50,
-      });
-      
-      this.chartInstance.setOption(option,true);
+    },
+    generate() {
+      const notEmptyKeys = Object.keys(this.formData).filter(key => this.formData[key] !== '')
+      const notEmptyJSON = {}
+      const series = []
 
-      window.addEventListener('resize', ()=>{
-        if (this.chartInstance) this.chartInstance.resize();
-      });
+      for (const key of notEmptyKeys) {
+        notEmptyJSON[key] = this.formData[key]
+        const ttkValue = this.findTTK(key, this.formData[key])
+
+        if (ttkValue !== 0) {
+          series.push({ name: this.name[key], value: ttkValue, category: 1 })
+        } else {
+          series.push({ name: this.name[key], value: 5, category: 2 })
+        }
+      }
+
+      this.jsonText = JSON.stringify(notEmptyJSON, null, 2)
+
+      const processedData = [
+        ...series.filter(item => item.category === 1).sort((a, b) => a.value - b.value),
+        ...series.filter(item => item.category === 2)
+      ].map(item => ({
+        ...item,
+        itemStyle: {
+          color: item.category === 1 ? CHART_THEME.valid : CHART_THEME.invalid
+        }
+      }))
+
+      const chartWidth = Math.max(420, this.$refs.chartViewport?.clientWidth ?? 480)
+      const chartHeight = Math.max(220, 100 + processedData.length * 44)
+
+      this.chartInstance.clear()
+      this.chartInstance.resize({
+        width: chartWidth,
+        height: chartHeight
+      })
+      this.chartInstance.setOption(this.buildChartOption(processedData), true)
     },
     changeLang() {
-      this.name = this.lang.names;
-      this.generate();
+      this.name = this.lang.names
+      if (!this.isFormDataEmpty || !this.isTextEmpty) {
+        this.generate()
+      }
     }
   }
-};
+}
 </script>
+
 <template>
-<!-- 修改两列显示 -->
-  <div style="display: flex; flex-direction: row;">
-    <div class="form-container">  <!-- 新增包裹容器 -->
-      <div v-for="(itemName, id) in name" :key="id" class="form-item">
-        <label class="form-label" style="color: #fff;">{{ itemName }}:</label>
-        <div style="position: relative; display: inline-block;">
-          <input 
-            type="text" 
-            v-model="formData[id]"
-            style="padding-right: 25px; width: 50px;"
-          >
-          <span style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); color: #999;">%</span>
+  <div class="page-shell">
+    <section class="page-header">
+      <div class="page-header-copy">
+        <p class="page-eyebrow">{{ isEnglish ? 'Practice tool' : '练习工具' }}</p>
+        <h2 class="page-title">{{ lang.labels['self_test'] }}</h2>
+        <p class="page-subtitle">
+          {{ isEnglish
+            ? 'Fill in your estimated hit rates, then generate a ranked TTK snapshot plus a reusable JSON payload.'
+            : '填入你对自己命中率的估计，生成一张 TTK 排名快照，并导出可复用的 JSON。' }}
+        </p>
+      </div>
+      <span class="section-badge">{{ uiText.summary }} · {{ filledCount }}</span>
+    </section>
+
+    <div class="list-layout">
+      <section class="surface-card form-card">
+        <div class="surface-header">
+          <div>
+            <h3 class="surface-title">{{ isEnglish ? 'Input hit rates' : '输入命中率' }}</h3>
+            <p class="surface-description">
+              {{ isEnglish
+                ? 'The form keeps every weapon visible, but the card layout and scroll container make long sessions less painful.'
+                : '所有武器都保留在同一张表单中，通过卡片化布局和内部滚动降低长表单的疲劳感。' }}
+            </p>
+          </div>
+          <div class="stat-card compact-stat">
+            <p class="stat-label">{{ uiText.summary }}</p>
+            <p class="stat-value">{{ filledCount }}</p>
+            <p class="stat-meta">{{ isEnglish ? 'out of 41 entries' : '共 41 项' }}</p>
+          </div>
         </div>
-      </div>
-    </div>
 
-    <div class="button-group" style="margin-top: 20px;">
-      <button @click="generate" :disabled="isFormDataEmpty" :class="{ 'disabled-button': isFormDataEmpty }" style="height: 100px; width: 100px; font-size: 20px;">{{ lang.labels["generate"] }}<br>→</button>
-    </div>
+        <div class="form-grid">
+          <label v-for="(itemName, id) in name" :key="id" class="input-card">
+            <span class="weapon-name">{{ itemName }}</span>
+            <div class="percent-field">
+              <input
+                v-model="formData[id]"
+                class="text-field percent-input"
+                type="number"
+                min="0"
+                max="100"
+                step="0.1"
+                inputmode="decimal"
+                placeholder="0 - 100"
+              >
+              <span class="percent-suffix">%</span>
+            </div>
+          </label>
+        </div>
 
-    <div class="json-section">
-      <div style="width: 100%; height: 600px; overflow-y: auto;">
-        <div id="container" ref="chartContainer2" style="height: 400px; width: 480px;"></div>
-      </div>
-      <textarea
-        v-model="jsonText" 
-        :placeholder= "this.lang.labels['paste_here']"
-        class="json-textarea"
-      ></textarea>
-      <div class="button-group">
-        <button @click="copyToClipboard" :disabled="isTextEmpty" :class="{ 'disabled-button': isTextEmpty }">{{ lang.labels["copy"] }}</button>
-        <button @click="parseAndUpdate" :disabled="isTextEmpty" :class="{ 'disabled-button': isTextEmpty }">{{ lang.labels["parse_json"] }}</button>
-      </div>
+        <div class="form-actions">
+          <button class="filled-button generate-button" @click="generate" :disabled="isFormDataEmpty">
+            {{ lang.labels['generate'] }}
+          </button>
+        </div>
+      </section>
+
+      <section class="surface-card output-card">
+        <div class="surface-header">
+          <div>
+            <h3 class="surface-title">{{ isEnglish ? 'Output preview' : '输出预览' }}</h3>
+            <p class="surface-description">
+              {{ isEnglish
+                ? 'The chart ranks your current weapon pool while the JSON box stays ready for copy and later re-import.'
+                : '图表会对当前武器池做排名，JSON 区域则方便复制和之后再次导入。' }}
+            </p>
+          </div>
+        </div>
+
+        <div ref="chartViewport" class="chart-scroll">
+          <div ref="chartContainer2" class="self-chart"></div>
+        </div>
+
+        <div class="field-shell">
+          <span class="field-label">JSON</span>
+          <textarea
+            v-model="jsonText"
+            :placeholder="lang.labels['paste_here']"
+            class="text-area code-area"
+          ></textarea>
+        </div>
+
+        <div class="output-actions">
+          <button class="tonal-button" @click="copyToClipboard" :disabled="isTextEmpty">{{ lang.labels['copy'] }}</button>
+          <button class="outlined-button" @click="parseAndUpdate" :disabled="isTextEmpty">{{ lang.labels['parse_json'] }}</button>
+        </div>
+      </section>
     </div>
-    
   </div>
 </template>
-<style>
-/* 新增表单容器样式 */
-.form-container {
+
+<style scoped>
+.list-layout {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 6px;
-  padding: 10px;
+  grid-template-columns: minmax(0, 1.2fr) minmax(360px, 0.9fr);
+  gap: 20px;
+  align-items: start;
 }
 
-.form-item {
-  margin: 5px;
+.form-card,
+.output-card {
+  padding: 28px;
 }
 
-.form-label {
-  display: inline-block;
-  width: 250px;
+.compact-stat {
+  min-width: 160px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  max-height: 760px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.input-card {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  min-height: 76px;
+  padding: 16px 18px;
+  border-radius: 22px;
+  border: 1px solid var(--md-sys-color-outline-variant);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.weapon-name {
+  flex: 1;
+  line-height: 1.5;
+  color: var(--md-sys-color-on-surface);
+}
+
+.percent-field {
+  position: relative;
+  width: 112px;
+  flex-shrink: 0;
+}
+
+.percent-input {
+  padding-right: 34px;
   text-align: right;
-  margin: 5px;
 }
 
-input {
-  padding: 5px;
-  border: 1px solid #ddd;
+.percent-suffix {
+  position: absolute;
+  top: 50%;
+  right: 16px;
+  transform: translateY(-50%);
+  color: var(--md-sys-color-on-surface-variant);
 }
 
-.json-section {
-  margin: 20px 0;
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 20px;
 }
 
-.json-textarea {
+.generate-button {
+  min-width: 160px;
+}
+
+.output-card {
+  position: sticky;
+  top: 24px;
+}
+
+.chart-scroll {
+  overflow: auto;
+  max-height: 520px;
+  padding: 16px;
+  border-radius: 24px;
+  border: 1px solid var(--md-sys-color-outline-variant);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.self-chart {
   width: 100%;
-  height: 150px;
-  padding: 10px;
-  border: 1px solid #ffffff7b;
-  font-family: monospace;
-  margin-bottom: 10px;
-  box-sizing: border-box;
+  min-height: 220px;
 }
 
-.button-group button {
-  margin-right: 10px;
-  padding: 8px 15px;
-  background: #50BBAA;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
+.code-area {
+  font-family: ui-monospace, 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
 }
 
-.button-group button:hover {
-  background: #307B6E;
+.output-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+  flex-wrap: wrap;
 }
 
-.disabled-button {
-  background-color: #cccccc !important;
-  cursor: not-allowed;
-  opacity: 0.6;
+@media (max-width: 1200px) {
+  .list-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .output-card {
+    position: static;
+  }
+}
+
+@media (max-width: 960px) {
+  .form-card,
+  .output-card {
+    padding: 22px;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+    max-height: 640px;
+  }
 }
 </style>
