@@ -1,26 +1,71 @@
 <template>
-  <div>
-    <!-- 导航栏 -->
-    <nav class="navbar">
-      <div class="nav-items">
-        <!-- 导航按钮 -->
-        <button
-          v-for="tab in tabs"
-          :key="tab.name" @click="handleTabClick(tab)" :class="{ active: currentTab === tab.component }"
-        >
-          {{ lang.labels[tab.name] }}
-        </button>
+  <div class="app-shell">
+    <header class="app-topbar surface-card">
+      <div class="brand-block">
+        <div class="brand-emblem">A</div>
+        <div class="brand-copy">
+          <p class="page-eyebrow">{{ isEnglish ? 'Material Design 3' : 'Material Design 3 改版' }}</p>
+          <h1 class="brand-title">Apex Weapons Lab</h1>
+          <p class="brand-subtitle">
+            {{ isEnglish
+              ? 'A cleaner dashboard for hit-rate curves, survivability timing, flexibility metrics and self-testing.'
+              : '用更清晰的界面重组命中率曲线、容错时序、灵活性指标和自测流程。' }}
+          </p>
+          <div class="headline-metrics">
+            <div v-for="item in heroPills" :key="item.label" class="headline-pill">
+              <span>{{ item.label }}</span>
+              <strong>{{ item.value }}</strong>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <!-- 语言选择下拉框 -->
-      <select v-model="selectedLanguage" @change="changeLanguage" class="language-select">
-        <option v-for="(item, name) in langList" :key="name" :value="name">{{ item.text }}</option>
-      </select>
-    </nav>
+      <div class="topbar-tools">
+        <div class="surface-card surface-card--tonal context-pill">
+          <span class="context-label">{{ isEnglish ? 'Current view' : '当前视图' }}</span>
+          <strong>{{ currentTabLabel }}</strong>
+        </div>
 
-    <!-- 内容区域 -->
-    <main class="content">
-      <component :is="currentTab" :key="currentTab" ref="currentTabRef" :lang=lang />
+        <label class="field-shell language-shell">
+          <span class="field-label">{{ isEnglish ? 'Language' : '语言' }}</span>
+          <select v-model="selectedLanguage" @change="changeLanguage" class="select-field">
+            <option v-for="(item, name) in langList" :key="name" :value="name">{{ item.text }}</option>
+          </select>
+        </label>
+      </div>
+    </header>
+
+    <section class="surface-card nav-shell">
+      <div class="surface-header">
+        <div>
+          <h2 class="surface-title">{{ isEnglish ? 'Analysis Views' : '分析视图' }}</h2>
+          <p class="surface-description">
+            {{ isEnglish
+              ? 'Move between the four in-app dashboards, or open the original source document in a new tab.'
+              : '在四个站内分析面板之间切换，或直接打开原始数据文档。' }}
+          </p>
+        </div>
+        <span class="section-badge">{{ currentTabLabel }}</span>
+      </div>
+
+      <div class="nav-items">
+        <button
+          v-for="tab in tabs"
+          :key="tab.name"
+          class="nav-chip"
+          :class="{ active: currentTab === tab.component, external: Boolean(tab.url) }"
+          @click="handleTabClick(tab)"
+        >
+          <span class="nav-chip-label">{{ lang.labels[tab.name] }}</span>
+          <span class="nav-chip-trailing">
+            {{ tab.url ? (isEnglish ? 'Open' : '打开') : (currentTab === tab.component ? (isEnglish ? 'Live' : '当前') : '') }}
+          </span>
+        </button>
+      </div>
+    </section>
+
+    <main class="content-area">
+      <component :is="currentTab" :key="currentTab" ref="currentTabRef" :lang="lang" />
     </main>
   </div>
 </template>
@@ -42,115 +87,283 @@ export default {
   },
   data() {
     const langList = {
-      "cn":{text:'中文',data:cn},
-      "en":{text:'English',data:en}
+      cn: { text: '中文', data: cn },
+      en: { text: 'English', data: en }
     }
     const tabs = [
       { name: 'ttk_curve', component: 'chart' },
       { name: 'ttk_ttm', component: 'ttk_ttm' },
-      { name: 'flex', component: 'flex' }, // 新增灵活性入口
+      { name: 'flex', component: 'flex' },
       { name: 'self_test', component: 'list' },
-      { name: 'ori_doc', url: 'https://docs.qq.com/sheet/DVHRMRG9Jdm5Udm10?tab=000001'}
+      { name: 'ori_doc', url: 'https://docs.qq.com/sheet/DVHRMRG9Jdm5Udm10?tab=000001' }
     ]
 
     return {
       selectedLanguage: 'cn',
       langList,
       lang: cn,
-
       tabs,
       currentTab: 'chart',
       currentTabComponent: null
     }
   },
-  methods:{
+  computed: {
+    isEnglish() {
+      return this.selectedLanguage === 'en'
+    },
+    currentTabLabel() {
+      const activeTab = this.tabs.find(tab => tab.component === this.currentTab)
+      return activeTab ? this.lang.labels[activeTab.name] : 'Apex Weapons Lab'
+    },
+    heroPills() {
+      return this.isEnglish
+        ? [
+            { label: 'Views', value: '4 dashboards' },
+            { label: 'Data', value: 'Static local sets' },
+            { label: 'Deploy', value: 'GitHub Actions' }
+          ]
+        : [
+            { label: '视图', value: '4 个面板' },
+            { label: '数据', value: '本地静态数据集' },
+            { label: '部署', value: 'GitHub Actions' }
+          ]
+    }
+  },
+  methods: {
     handleTabClick(tab) {
       if (tab.url) {
-        window.open(tab.url, '_blank');
+        window.open(tab.url, '_blank')
       } else {
-        this.currentTab = tab.component;
+        this.currentTab = tab.component
       }
+
       this.$nextTick(() => {
         this.currentTabComponent = this.$refs.currentTabRef
       })
     },
     changeLanguage() {
       this.lang = this.langList[this.selectedLanguage].data
-      console.log('切换语言到:', this.selectedLanguage)
       this.$nextTick(() => {
         if (this.currentTabComponent && typeof this.currentTabComponent.changeLang === 'function') {
           this.currentTabComponent.changeLang()
-        } else {
-          console.warn('当前子组件不可用或方法不存在')
         }
       })
-    },
+    }
   },
   mounted() {
     this.$nextTick(() => {
-      this.currentTabComponent = this.$refs.currentTabRef // 初始化 currentTabComponent
+      this.currentTabComponent = this.$refs.currentTabRef
     })
-  },
+  }
 }
 </script>
 
 <style scoped>
-.navbar {
-  box-sizing: border-box;
-  position: fixed;
-  top: 0;
-  width: 100%;
-  height: 70px;
-  background-color: #333;
-  padding-left: 10px;
-  padding-right: 10px;
-  padding-top: 0;
-  padding-bottom: 0;
+.app-shell {
+  width: min(1480px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 24px 0 40px;
+}
+
+.app-topbar,
+.nav-shell {
+  padding: 28px;
+}
+
+.app-topbar {
   display: flex;
   justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+  flex-wrap: wrap;
+  position: sticky;
+  top: 16px;
+  z-index: 40;
+}
+
+.brand-block {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  flex: 1 1 680px;
+  min-width: 0;
+}
+
+.brand-emblem {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 24px;
+  background: linear-gradient(135deg, rgba(151, 203, 255, 0.22), rgba(141, 231, 193, 0.24));
+  color: var(--md-sys-color-on-surface);
+  font-size: 1.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.brand-copy {
+  min-width: 0;
+}
+
+.brand-title {
+  margin: 0;
+  font-size: clamp(2rem, 3vw, 3.2rem);
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.brand-subtitle {
+  margin: 14px 0 0;
+  max-width: 62ch;
+  color: var(--md-sys-color-on-surface-variant);
+  line-height: 1.65;
+}
+
+.headline-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.headline-pill {
+  display: inline-flex;
   align-items: center;
-  z-index: 1000;
+  gap: 10px;
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid var(--md-sys-color-outline-variant);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.headline-pill strong {
+  color: var(--md-sys-color-on-surface);
+  font-weight: 600;
+}
+
+.topbar-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: min(100%, 280px);
+}
+
+.context-pill {
+  padding: 16px 18px;
+}
+
+.context-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.language-shell {
+  min-width: 200px;
+}
+
+.nav-shell {
+  margin-top: 20px;
 }
 
 .nav-items {
   display: flex;
-  gap: 1rem;
-  height: 100%;
+  flex-wrap: wrap;
+  gap: 14px;
 }
 
-button {
-  padding: 0.5rem 1rem;
-  height: 100%;
-  background: none;
-  border: none;
-  color: white;
+.nav-chip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-width: 220px;
+  min-height: 64px;
+  padding: 0 20px;
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--md-sys-color-on-surface-variant);
   cursor: pointer;
-  transition: background-color 0.3s;
+  transition:
+    transform 180ms ease,
+    background-color 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    color 180ms ease;
 }
 
-button:hover {
-  background-color: #307B6E;
+.nav-chip:hover {
+  transform: translateY(-1px);
+  border-color: rgba(151, 203, 255, 0.34);
+  background: rgba(255, 255, 255, 0.04);
 }
 
-button.active {
-  background-color: #50BBAA;
-  font-weight: bold;
+.nav-chip.active {
+  background: linear-gradient(135deg, rgba(151, 203, 255, 0.22), rgba(120, 218, 204, 0.14));
+  border-color: rgba(151, 203, 255, 0.32);
+  color: var(--md-sys-color-on-surface);
+  box-shadow: 0 18px 34px rgba(10, 15, 22, 0.22);
 }
 
-.language-select {
-  padding: 0.5rem;
-  background-color: #444;
-  color: white;
-  border: 1px solid #666;
-  border-radius: 4px;
+.nav-chip.external {
+  border-style: dashed;
 }
 
-.content {
-  margin-top: 70px;
-  /* 留出导航栏空间 */
-  padding: 0;
-  height: calc(100vh - 70px);
-  box-sizing: border-box;
-  overflow: auto;
+.nav-chip-label {
+  font-size: 0.96rem;
+  font-weight: 500;
+}
+
+.nav-chip-trailing {
+  font-size: 0.84rem;
+  color: var(--md-sys-color-primary);
+}
+
+.content-area {
+  margin-top: 24px;
+}
+
+@media (max-width: 960px) {
+  .app-shell {
+    width: min(100%, calc(100% - 20px));
+    padding-top: 16px;
+  }
+
+  .app-topbar,
+  .nav-shell {
+    padding: 22px;
+  }
+
+  .app-topbar {
+    position: static;
+  }
+
+  .brand-block {
+    flex-direction: column;
+  }
+
+  .brand-emblem {
+    width: 60px;
+    height: 60px;
+    border-radius: 20px;
+  }
+
+  .nav-chip {
+    min-width: calc(50% - 7px);
+  }
+}
+
+@media (max-width: 640px) {
+  .nav-chip {
+    min-width: 100%;
+  }
 }
 </style>

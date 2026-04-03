@@ -1,96 +1,123 @@
 <script>
-import * as echarts from 'echarts';
-import ttks from '@/data/id_stats.js';
-import names from '@/data/id_name.js';
-import { markRaw } from 'vue';
-import classes from '@/data/Class.js';
-import { chartDataFormatter } from '@/utils';
+import * as echarts from 'echarts'
+import ttks from '@/data/id_stats.js'
+import { markRaw } from 'vue'
+import classes from '@/data/Class.js'
+import { chartDataFormatter } from '@/utils'
 
-// 数据处理相关常量
+const CHART_THEME = {
+  accent: '#97cbff',
+  accentStrong: '#71e0cf',
+  surface: 'rgba(16, 22, 30, 0.94)',
+  text: '#e2e6ee',
+  muted: '#a6b0c2',
+  grid: 'rgba(166, 176, 194, 0.14)'
+}
+
 const DATA_CONSTANTS = {
-  // Y轴数据有效范围 (TTK时间范围)
   Y_AXIS_MIN: 0,
   Y_AXIS_MAX: 10,
-  
-  // X轴数据范围 (命中率百分比范围)
   X_AXIS_MIN: 0,
   X_AXIS_MAX: 100,
-  
-  // 轴范围计算时的边距设置
-  Y_AXIS_PADDING_PERCENT: 0.1,    // Y轴10%边距
-  Y_AXIS_PADDING_FALLBACK: 0.5,   // Y轴数据范围为0时的固定边距
-  X_AXIS_PADDING_PERCENT: 0.05,   // X轴5%边距  
-  X_AXIS_PADDING_FALLBACK: 5,     // X轴数据范围为0时的固定边距
-};
+  Y_AXIS_PADDING_PERCENT: 0.1,
+  Y_AXIS_PADDING_FALLBACK: 0.5,
+  X_AXIS_PADDING_PERCENT: 0.05,
+  X_AXIS_PADDING_FALLBACK: 5
+}
 
 const DEFAULT_OPTIONS = {
+  animationDuration: 320,
   grid: {
-    top: '35px',
-    right: '280px',
-    bottom: '40px',
-    left: '20px',
+    top: 28,
+    right: 240,
+    bottom: 72,
+    left: 18,
     containLabel: true
   },
-  backgroundColor: '#212121',
+  backgroundColor: 'transparent',
   tooltip: {
-    trigger: 'axis', // 改为axis模式，鼠标移动到坐标轴上时显示
+    trigger: 'axis',
     axisPointer: {
-      type: 'cross', // 显示十字准线
+      type: 'cross',
       lineStyle: {
-        color: '#50BBAA',
+        color: CHART_THEME.accent,
         width: 1,
         type: 'dashed'
       },
       crossStyle: {
-        color: '#50BBAA'
+        color: CHART_THEME.accent
       }
     },
-    backgroundColor: 'rgba(33, 33, 33, 0.9)',
-    borderColor: '#50BBAA',
+    backgroundColor: CHART_THEME.surface,
+    borderColor: 'rgba(151, 203, 255, 0.28)',
     borderWidth: 1,
     textStyle: {
-      color: '#fff'
+      color: CHART_THEME.text
     },
-    formatter: function (){}, // 插入方法移至updateAxisRange中,以便更新标签文本
-    enterable: true, // 允许鼠标进入tooltip区域
-    triggerOn: 'mousemove', // 鼠标移动时触发
+    formatter: function () {},
+    enterable: true,
+    triggerOn: 'mousemove',
     alwaysShowContent: false
   },
   legend: {
     type: 'scroll',
     orient: 'vertical',
-    right: 10,
-    top: 30,
-    bottom: 20,
+    right: 0,
+    top: 6,
+    bottom: 18,
     textStyle: {
-      fontSize: 14,
+      color: CHART_THEME.muted,
+      fontSize: 13
     },
+    pageTextStyle: {
+      color: CHART_THEME.muted
+    }
   },
   xAxis: {
     type: 'value',
-    axisLabel: {
-      formatter: '{value} %',
-      align: 'center',
-      fontSize: 14,
-    },
     min: 0,
     max: 100,
-    interval: 10
+    interval: 10,
+    axisLabel: {
+      formatter: '{value}%',
+      color: CHART_THEME.muted,
+      fontSize: 13
+    },
+    axisLine: {
+      lineStyle: {
+        color: 'rgba(166, 176, 194, 0.3)'
+      }
+    },
+    splitLine: {
+      lineStyle: {
+        color: CHART_THEME.grid
+      }
+    }
   },
   yAxis: {
     type: 'value',
-    axisLabel: {
-      formatter: (value) => `${value.toFixed(2)} s`,
-      align: 'right',
-      fontSize: 14,
-    },
     min: 0,
     max: 10,
     maxInterval: 1,
     minInterval: 0.3,
-    splitNumber: 10
+    splitNumber: 10,
+    axisLabel: {
+      formatter: value => `${value.toFixed(2)}s`,
+      color: CHART_THEME.muted,
+      fontSize: 13
+    },
+    axisLine: {
+      lineStyle: {
+        color: 'rgba(166, 176, 194, 0.3)'
+      }
+    },
+    splitLine: {
+      lineStyle: {
+        color: CHART_THEME.grid
+      }
+    }
   },
-  series: [], // 不设置初始值，以便初始化时读取language
+  series: [],
   dataZoom: [
     {
       type: 'inside',
@@ -100,380 +127,429 @@ const DEFAULT_OPTIONS = {
       zoomOnMouseWheel: true,
       moveOnMouseMove: true,
       moveOnMouseWheel: false,
-      filterMode: 'none' // 不删除范围外的点，以免折线断开，下同
+      filterMode: 'none'
     },
     {
-      type: 'slider', // 滑动条型数据区域缩放
+      type: 'slider',
       xAxisIndex: [0],
-      show: true,    // 是否显示滑动条，默认 true
-      start: 0,     // 根据数据范围调整起始值（约37%）
-      end: 100,      // 结束值保持100%
-      height: 30,    // 滑动条的高度
-      bottom: 10,      // 滑动条的位置
+      show: true,
+      start: 0,
+      end: 100,
+      height: 28,
+      bottom: 18,
+      borderColor: 'rgba(151, 203, 255, 0.14)',
+      fillerColor: 'rgba(151, 203, 255, 0.18)',
+      backgroundColor: 'rgba(255, 255, 255, 0.03)',
+      handleStyle: {
+        color: CHART_THEME.accent
+      },
+      textStyle: {
+        color: CHART_THEME.muted
+      },
       filterMode: 'none'
     }
   ]
-};
+}
+
+const cloneAxis = axis => (Array.isArray(axis) ? { ...axis[0] } : { ...axis })
+const cloneDataZoom = dataZoom => (Array.isArray(dataZoom) ? dataZoom.map(item => ({ ...item })) : [])
 
 export default {
+  props: {
+    lang: { type: Object, required: true }
+  },
   data() {
     return {
-      chartInstance: null, // 存储图表实例
+      chartInstance: null,
       ttk: chartDataFormatter(ttks, this.lang.names),
-      name: names,
-      classes: classes,
+      classes,
       filter: {},
-      ALL: true,
-      allCheckboxHeight: 0,
-      transformType: 'none', // 数据变换类型
-      transformParams: {}, // 变换参数
-    };
+      ALL: true
+    }
   },
-  props: { 
-    lang:{type: Object, required: true}
+  computed: {
+    isEnglish() {
+      return this.lang?.labels?.hit_rate === 'Hit Rate'
+    },
+    selectedClassCount() {
+      return Object.values(this.filter).filter(Boolean).length
+    },
+    selectionSummary() {
+      if (this.selectedClassCount === 0) {
+        return this.isEnglish ? 'All weapon groups' : '全部武器类别'
+      }
+      return this.isEnglish
+        ? `${this.selectedClassCount} groups selected`
+        : `已选 ${this.selectedClassCount} 个类别`
+    },
+    cardSummary() {
+      return this.isEnglish ? '39 weapons · 0–100% hit rate' : '39 把武器 · 0–100% 命中率'
+    },
+    helpText() {
+      return this.isEnglish
+        ? 'Compare kill-time curves across the full hit-rate range and isolate a class when you want a narrower read.'
+        : '在完整命中率区间内比较击杀时间曲线，并按武器类别快速收窄范围。'
+    }
   },
-  async mounted() {
-    this.allCheckboxHeight = this.$refs.all_checkbox.offsetHeight;
-    await this.$nextTick();
-    this.initChart();
-    this.initFilter();
+  mounted() {
+    this.initFilter()
+    this.initChart()
+    window.addEventListener('resize', this.handleWindowResize)
   },
   beforeUnmount() {
-    // 组件卸载前销毁图表
+    window.removeEventListener('resize', this.handleWindowResize)
     if (this.chartInstance) {
-      this.chartInstance.dispose();
-      this.chartInstance = null;
+      this.chartInstance.dispose()
+      this.chartInstance = null
     }
   },
   methods: {
-    // 动态更新轴范围 - 接受option参数并返回修改后的option
+    handleWindowResize() {
+      if (this.chartInstance) {
+        this.chartInstance.resize()
+      }
+    },
+    initFilter() {
+      this.filter = Object.keys(this.classes).reduce((acc, key) => {
+        acc[key] = false
+        return acc
+      }, {})
+    },
+    getSeriesFromOption(option) {
+      return !option.series || option.series.length === 0 ? this.ttk : option.series
+    },
     updateAxisRange(inputOption = null, skipDataZoomCalculation = false) {
-      // 如果没有传入option，从图表实例获取当前option
-      const option = inputOption || (this.chartInstance ? this.chartInstance.getOption() : null);
+      const sourceOption = inputOption || (this.chartInstance ? this.chartInstance.getOption() : null)
 
-      if (!option) return inputOption;
+      if (!sourceOption) return inputOption
 
-      const series = (!option.series || option.series.length === 0) ? this.ttk : option.series;
+      const option = {
+        ...sourceOption,
+        xAxis: cloneAxis(sourceOption.xAxis),
+        yAxis: cloneAxis(sourceOption.yAxis),
+        dataZoom: cloneDataZoom(sourceOption.dataZoom)
+      }
 
-      option.tooltip.formatter = (params)=> {
-        if (!params || params.length === 0) return '';
-        
-        // 获取X轴值（命中率）
-        const hitRate = params[0].value[0];
-        let tooltipContent = `<div style="font-weight: bold; margin-bottom: 8px;">${this.lang.labels['hit_rate']}: ${hitRate.toFixed(1)}%</div>`;
-        
-        // 按TTK值排序，显示最优性能的武器
+      const series = this.getSeriesFromOption(option)
+
+      option.tooltip.formatter = params => {
+        if (!params || params.length === 0) return ''
+
+        const hitRate = params[0].value[0]
+        let tooltipContent = `<div style="font-weight:700;margin-bottom:8px;">${this.lang.labels.hit_rate}: ${hitRate.toFixed(1)}%</div>`
+
         const sortedParams = params
           .filter(param => param.value && param.value[1] !== null)
-          .sort((a, b) => a.value[1] - b.value[1]);
-        
+          .sort((a, b) => a.value[1] - b.value[1])
+
         sortedParams.forEach((param, index) => {
-          const ttk = param.value[1];
-          const weaponName = param.seriesName;
-          const color = param.color;
-          
+          const ttk = param.value[1]
           tooltipContent += `
-            <div style="display: flex; align-items: center; margin: 4px 0;">
-              <span style="display: inline-block; width: 10px; height: 10px; background-color: ${color}; border-radius: 50%; margin-right: 8px;"></span>
-              <span style="flex: 1;">${weaponName}</span>
-              <span style="font-weight: bold; color: ${index === 0 ? '#50BBAA' : '#fff'};">${ttk.toFixed(3)}s</span>
+            <div style="display:flex;align-items:center;gap:8px;margin:6px 0;">
+              <span style="width:10px;height:10px;border-radius:999px;background:${param.color};display:inline-block;"></span>
+              <span style="flex:1;">${param.seriesName}</span>
+              <span style="font-weight:700;color:${index === 0 ? CHART_THEME.accentStrong : CHART_THEME.text};">${ttk.toFixed(3)}s</span>
             </div>
-          `;
-        });
-        
-        return tooltipContent;
+          `
+        })
+
+        return tooltipContent
       }
 
-      // 收集所有系列的X值以计算实际数据范围
-      let allXValues = [];
-      let allYValues = [];
+      const allXValues = []
+      const allYValues = []
 
       series.forEach(seriesItem => {
-        if (!seriesItem || !seriesItem.data || seriesItem.data.length === 0) return;
+        if (!seriesItem?.data?.length) return
 
         seriesItem.data.forEach(point => {
           if (point && point.length >= 2) {
-            const xValue = point[0];
-            const yValue = point[1];
-
-            if (xValue !== null && xValue !== undefined &&
-              yValue !== null && yValue !== undefined &&
-              yValue >= DATA_CONSTANTS.Y_AXIS_MIN && yValue <= DATA_CONSTANTS.Y_AXIS_MAX) {
-              allXValues.push(xValue);
-              allYValues.push(yValue);
+            const [xValue, yValue] = point
+            if (
+              xValue !== null &&
+              xValue !== undefined &&
+              yValue !== null &&
+              yValue !== undefined &&
+              yValue >= DATA_CONSTANTS.Y_AXIS_MIN &&
+              yValue <= DATA_CONSTANTS.Y_AXIS_MAX
+            ) {
+              allXValues.push(xValue)
+              allYValues.push(yValue)
             }
           }
-        });
-      });
+        })
+      })
 
-      // 创建新的option对象
-      let newOption = { ...option,series: series };
+      let newOption = {
+        ...option,
+        series
+      }
 
-            // 根据数据范围设置X轴dataZoom的起始值（仅在非dataZoom事件触发时）
       if (!skipDataZoomCalculation && allXValues.length > 0) {
-        const minX = Math.min(...allXValues);
-        const maxX = Math.max(...allXValues);
-        
-        // 添加一些边距，避免数据点贴边
-        const xRange = maxX - minX;
-        const xPadding = xRange > 0 ? xRange * DATA_CONSTANTS.X_AXIS_PADDING_PERCENT : DATA_CONSTANTS.X_AXIS_PADDING_FALLBACK;
-        
-        const adjustedMinX = Math.max(DATA_CONSTANTS.X_AXIS_MIN, minX - xPadding);
-        const adjustedMaxX = Math.min(DATA_CONSTANTS.X_AXIS_MAX, maxX + xPadding);
-        
-        // 计算dataZoom的起始和结束百分比
-        const startPercent = (adjustedMinX / DATA_CONSTANTS.X_AXIS_MAX) * 100;
-        const endPercent = (adjustedMaxX / DATA_CONSTANTS.X_AXIS_MAX) * 100;
-        
-        console.log('X轴数据范围:', { 
-          originalMin: minX, 
-          originalMax: maxX,
-          adjustedMin: adjustedMinX,
-          adjustedMax: adjustedMaxX,
-          startPercent,
-          endPercent 
-        });
-        
-        // 使用辅助函数更新dataZoom配置
-        newOption = this.updateDataZoom(newOption, startPercent, endPercent);
+        const minX = Math.min(...allXValues)
+        const maxX = Math.max(...allXValues)
+        const xRange = maxX - minX
+        const xPadding = xRange > 0 ? xRange * DATA_CONSTANTS.X_AXIS_PADDING_PERCENT : DATA_CONSTANTS.X_AXIS_PADDING_FALLBACK
+
+        const adjustedMinX = Math.max(DATA_CONSTANTS.X_AXIS_MIN, minX - xPadding)
+        const adjustedMaxX = Math.min(DATA_CONSTANTS.X_AXIS_MAX, maxX + xPadding)
+
+        const startPercent = (adjustedMinX / DATA_CONSTANTS.X_AXIS_MAX) * 100
+        const endPercent = (adjustedMaxX / DATA_CONSTANTS.X_AXIS_MAX) * 100
+
+        newOption = this.updateDataZoom(newOption, startPercent, endPercent)
       }
 
-      // 获取当前有效的X轴显示范围（用于Y轴计算）
-      let xMin = DATA_CONSTANTS.X_AXIS_MIN, xMax = DATA_CONSTANTS.X_AXIS_MAX;
-      if (newOption.dataZoom && newOption.dataZoom.length > 0) {
-        // 找到第一个X轴相关的dataZoom
-        const xDataZoom = newOption.dataZoom.find(dz =>
-          dz.xAxisIndex && Array.isArray(dz.xAxisIndex) && dz.xAxisIndex.length > 0
-        );
-        if (xDataZoom) {
-          const xStartPercent = xDataZoom.start || 0;
-          const xEndPercent = xDataZoom.end || 100;
+      let xMin = DATA_CONSTANTS.X_AXIS_MIN
+      let xMax = DATA_CONSTANTS.X_AXIS_MAX
+      const xDataZoom = newOption.dataZoom.find(dz => Array.isArray(dz.xAxisIndex) && dz.xAxisIndex.length > 0)
 
-          xMin = (xStartPercent / 100) * DATA_CONSTANTS.X_AXIS_MAX;
-          xMax = (xEndPercent / 100) * DATA_CONSTANTS.X_AXIS_MAX;
-        }
+      if (xDataZoom) {
+        const xStartPercent = xDataZoom.start || 0
+        const xEndPercent = xDataZoom.end || 100
+        xMin = (xStartPercent / 100) * DATA_CONSTANTS.X_AXIS_MAX
+        xMax = (xEndPercent / 100) * DATA_CONSTANTS.X_AXIS_MAX
       }
 
-      // 收集在当前X轴范围内的Y值用于Y轴范围计算
-      let visibleYValues = [];
+      const visibleYValues = []
 
       series.forEach(seriesItem => {
-        if (!seriesItem || !seriesItem.data || seriesItem.data.length === 0) return;
+        if (!seriesItem?.data?.length) return
 
         seriesItem.data.forEach(point => {
-          if (point && point.length >= 2) {
-            const xValue = point[0];
-            const yValue = point[1];
+          if (!point || point.length < 2) return
 
-                      if (xValue >= xMin && xValue <= xMax &&
-            yValue !== null && yValue !== undefined &&
-            yValue >= DATA_CONSTANTS.Y_AXIS_MIN && yValue <= DATA_CONSTANTS.Y_AXIS_MAX) {
-              visibleYValues.push(yValue);
-            }
+          const [xValue, yValue] = point
+          if (
+            xValue >= xMin &&
+            xValue <= xMax &&
+            yValue !== null &&
+            yValue !== undefined &&
+            yValue >= DATA_CONSTANTS.Y_AXIS_MIN &&
+            yValue <= DATA_CONSTANTS.Y_AXIS_MAX
+          ) {
+            visibleYValues.push(yValue)
           }
-        });
-      });
+        })
+      })
 
-      console.log('可见Y值数量:', visibleYValues.length);
-
-      // 如果找到了有效的Y值数据，计算Y轴范围
       if (visibleYValues.length > 0) {
-        const minY = Math.min(...visibleYValues);
-        const maxY = Math.max(...visibleYValues);
-
-        const range = maxY - minY;
-        const padding = range > 0 ? range * DATA_CONSTANTS.Y_AXIS_PADDING_PERCENT : DATA_CONSTANTS.Y_AXIS_PADDING_FALLBACK;
-
-        const yMin = Math.max(DATA_CONSTANTS.Y_AXIS_MIN, minY - padding);
-        const yMax = Math.min(DATA_CONSTANTS.Y_AXIS_MAX, maxY + padding);
-
-        console.log('设置Y轴范围:', {
-          yMin, yMax,
-          originalMin: minY,
-          originalMax: maxY,
-          visibleDataCount: visibleYValues.length
-        });
+        const minY = Math.min(...visibleYValues)
+        const maxY = Math.max(...visibleYValues)
+        const range = maxY - minY
+        const padding = range > 0 ? range * DATA_CONSTANTS.Y_AXIS_PADDING_PERCENT : DATA_CONSTANTS.Y_AXIS_PADDING_FALLBACK
 
         newOption.yAxis = {
           ...newOption.yAxis,
-          min: yMin,
-          max: yMax
-        };
+          min: Math.max(DATA_CONSTANTS.Y_AXIS_MIN, minY - padding),
+          max: Math.min(DATA_CONSTANTS.Y_AXIS_MAX, maxY + padding)
+        }
       } else {
-        console.log('在当前X轴范围内未找到有效的Y值数据');
-
-        // 如果没有找到数据，回到默认范围
         newOption.yAxis = {
           ...newOption.yAxis,
           min: DATA_CONSTANTS.Y_AXIS_MIN,
           max: DATA_CONSTANTS.Y_AXIS_MAX
-        };
+        }
       }
 
-      // 如果没有传入option参数（即直接调用模式），则直接更新图表
       if (!inputOption && this.chartInstance) {
-        const updateConfig = { yAxis: newOption.yAxis };
-        // 只有在非skipDataZoomCalculation时才更新dataZoom
+        const updateConfig = {
+          yAxis: newOption.yAxis
+        }
+
         if (!skipDataZoomCalculation) {
-          updateConfig.dataZoom = newOption.dataZoom;
-        }
-        this.chartInstance.setOption(updateConfig);
-      }
-
-      return newOption;
-    },
-    initFilter() {
-      for (let i in this.classes) {
-        this.filter[i] = false
-      }
-    },
-    handleAll() {
-      if (this.ALL != true) {
-        this.initFilter()
-        this.handleFilter()
-      }
-      this.ALL = true
-    },
-    changeFilter(key) {
-      if (this.filter.hasOwnProperty(key)) {
-        this.filter[key] = !this.filter[key];
-        this.handleFilter();
-      }
-    },
-    handleFilter() {
-      const selectedKeys = Object.entries(this.filter)
-        .filter(([_, value]) => value)
-        .map(([key]) => key);
-
-      if (selectedKeys.length === 0) {
-        this.ALL = true;
-        // 使用全部数据，直接让updateAxisRange处理
-        const updatedOption = this.updateAxisRange(DEFAULT_OPTIONS);
-        updatedOption.series = this.ttk;
-        this.chartInstance.setOption(updatedOption, true);
-      } else {
-        this.ALL = false;
-        const newSeries = [];
-        for (var i in selectedKeys) {
-          newSeries.push.apply(newSeries, this.ttk.filter(item => this.classes[selectedKeys[i]].includes(item["id"])));
+          updateConfig.dataZoom = newOption.dataZoom
         }
 
-        // 构建基础配置，让updateAxisRange自动处理dataZoom和Y轴范围
-        const baseOption = {
-          ...DEFAULT_OPTIONS,
-          series: newSeries,
-        };
-        const updatedOption = this.updateAxisRange(baseOption);
-
-        this.chartInstance.setOption(updatedOption, { replaceMerge: ['series'] });
+        this.chartInstance.setOption(updateConfig)
       }
+
+      return newOption
     },
-        // 辅助函数：更新X轴dataZoom配置
     updateDataZoom(option, startPercent, endPercent) {
-      if (!option.dataZoom) return option;
-      
       return {
         ...option,
         dataZoom: option.dataZoom.map(dz => {
-          // 只处理X轴相关的dataZoom
-          if (dz.xAxisIndex && Array.isArray(dz.xAxisIndex) && dz.xAxisIndex.length > 0) {
-            return { ...dz, start: startPercent, end: endPercent };
+          if (Array.isArray(dz.xAxisIndex) && dz.xAxisIndex.length > 0) {
+            return { ...dz, start: startPercent, end: endPercent }
           }
-          return dz;
+          return dz
         })
-      };
+      }
     },
-
     initChart() {
-      // 初始化图表
-      this.chartInstance = markRaw(echarts.init(this.$refs.chartContainer, "dark"));
-      
-      // 直接使用updateAxisRange来处理初始配置
-      const initialOptions = this.updateAxisRange(DEFAULT_OPTIONS);
-      this.chartInstance.setOption(initialOptions);
-
-      // 添加dataZoom事件监听
-      this.chartInstance.on('dataZoom', (params) => {
-        console.log('dataZoom event:', params);
-        // dataZoom变化时，只重新计算Y轴范围，不重新计算dataZoom
-        this.updateAxisRange(null, true);
-      });
-
-      window.addEventListener('resize', () => {
-        if (this.chartInstance) this.chartInstance.resize();
-      });
+      this.chartInstance = markRaw(echarts.init(this.$refs.chartContainer))
+      const initialOptions = this.updateAxisRange({ ...DEFAULT_OPTIONS, series: this.ttk })
+      this.chartInstance.setOption(initialOptions)
+      this.chartInstance.on('dataZoom', () => {
+        this.updateAxisRange(null, true)
+      })
     },
-    changeLang(){
+    handleAll() {
+      this.ALL = true
+      this.initFilter()
+      const updatedOption = this.updateAxisRange({ ...DEFAULT_OPTIONS, series: this.ttk })
+      this.chartInstance.setOption(updatedOption, true)
+    },
+    changeFilter(key) {
+      if (!Object.prototype.hasOwnProperty.call(this.filter, key)) return
+      this.filter[key] = !this.filter[key]
+      this.handleFilter()
+    },
+    handleFilter() {
+      const selectedKeys = Object.entries(this.filter)
+        .filter(([, value]) => value)
+        .map(([key]) => key)
+
+      if (selectedKeys.length === 0) {
+        this.handleAll()
+        return
+      }
+
+      this.ALL = false
+      const newSeries = []
+      selectedKeys.forEach(key => {
+        newSeries.push(...this.ttk.filter(item => this.classes[key].includes(item.id)))
+      })
+
+      const updatedOption = this.updateAxisRange({
+        ...DEFAULT_OPTIONS,
+        series: newSeries
+      })
+
+      this.chartInstance.setOption(updatedOption, { replaceMerge: ['series'] })
+    },
+    changeLang() {
       this.ttk = chartDataFormatter(ttks, this.lang.names)
-      this.handleFilter() // 借用filter重载图表,顺便还能保留筛选
+      if (this.ALL) {
+        this.handleAll()
+      } else {
+        this.handleFilter()
+      }
     }
   }
-};
+}
 </script>
-<template>
-  <div ref="main_container" style="width: 100%; height: 100%; display: flex; flex-direction: column;">
-    <div ref="chartContainer" class="chartContainer" style="height: 100%;width: 100%;"></div>
 
-  <div class="checkbox_container">
-    <div v-for="(name, index) in lang.classes" :key="index" class="checkbox">
-      <button class="checkbtn" :class="{ active: this.filter[index] }" @click="changeFilter(index)">
-        <span class="label">{{ name }}</span>
-      </button>
-    </div>
-    <div ref="all_checkbox" class="checkbox">
-      <button class="checkbtn" :class="{ active: this.ALL }" @click="handleAll(ALL)">
-        <span class="label">ALL</span>
-      </button>
-    </div>
-  </div>
+<template>
+  <div class="page-shell">
+    <section class="page-header">
+      <div class="page-header-copy">
+        <p class="page-eyebrow">{{ isEnglish ? 'Primary analysis' : '核心分析' }}</p>
+        <h2 class="page-title">{{ lang.labels['ttk_curve'] }}</h2>
+        <p class="page-subtitle">{{ helpText }}</p>
+      </div>
+      <span class="section-badge">{{ selectionSummary }}</span>
+    </section>
+
+    <section class="surface-card chart-card">
+      <div class="surface-header">
+        <div>
+          <h3 class="surface-title">{{ isEnglish ? 'Curve canvas' : '曲线画布' }}</h3>
+          <p class="surface-description">
+            {{ isEnglish
+              ? 'Hover to compare the best performer at each hit rate, and zoom horizontally to inspect narrow windows.'
+              : '悬停可查看同一命中率下的最佳表现者，横向缩放可专注分析某段命中率窗口。' }}
+          </p>
+        </div>
+        <div class="chart-meta">
+          <div class="meta-pill">
+            <span>{{ isEnglish ? 'Range' : '范围' }}</span>
+            <strong>0 - 100%</strong>
+          </div>
+          <div class="meta-pill">
+            <span>{{ isEnglish ? 'Dataset' : '数据' }}</span>
+            <strong>{{ cardSummary }}</strong>
+          </div>
+        </div>
+      </div>
+
+      <div ref="chartContainer" class="chart-host chart-stage"></div>
+    </section>
+
+    <section class="surface-card filter-card">
+      <div class="surface-header">
+        <div>
+          <h3 class="surface-title">{{ isEnglish ? 'Weapon groups' : '武器类别' }}</h3>
+          <p class="surface-description">
+            {{ isEnglish
+              ? 'Select one or more groups to reduce the visual noise and inspect similar weapon families together.'
+              : '选择一个或多个武器类别，降低视觉噪声，更专注地比较相近枪系。' }}
+          </p>
+        </div>
+        <span class="section-badge">{{ selectionSummary }}</span>
+      </div>
+
+      <div class="filter-chip-row">
+        <button
+          v-for="(name, index) in lang.classes"
+          :key="index"
+          class="filter-chip"
+          :class="{ active: filter[index] }"
+          @click="changeFilter(index)"
+        >
+          {{ name }}
+        </button>
+        <button class="filter-chip" :class="{ active: ALL }" @click="handleAll">
+          {{ isEnglish ? 'All groups' : '全部类别' }}
+        </button>
+      </div>
+    </section>
   </div>
 </template>
+
 <style scoped>
-.checkbox_container { 
-  flex-shrink: 0;
+.chart-card,
+.filter-card {
+  padding: 28px;
+}
+
+.chart-stage {
+  min-height: 620px;
+}
+
+.chart-meta {
   display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-  margin: 0;
-  padding: 0 20px;
-  overflow-x: auto;
-  overflow-y: hidden;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
-.checkbox {
-  display: flex;
-  align-items: center;
-  padding: 15px 5px;
-  font-family: Arial, sans-serif;
-  color: black;
+.meta-pill {
+  min-width: 150px;
+  padding: 14px 16px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--md-sys-color-outline-variant);
 }
 
-.checkbtn {
-  width: 140px;
-  height: 90px;
-  background: #212121;
-  outline: 0 solid #307B6E;
-  border-radius: 15px;
-  color: #000;
-  box-shadow: 0 0 0 1px #50BBAA;
-  transition: outline-width 0.2s;
-  border-width: 0px;
-  box-sizing: border-box;
+.meta-pill span {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--md-sys-color-on-surface-variant);
 }
 
-.label {
-  font-size: 18px;
-  font-weight: 700;
-  color: #ffffff7b;
+.meta-pill strong {
+  font-size: 0.96rem;
+  color: var(--md-sys-color-on-surface);
 }
 
-.checkbtn:hover {
-  outline-width: 5px;
+@media (max-width: 960px) {
+  .chart-card,
+  .filter-card {
+    padding: 22px;
+  }
+
+  .chart-stage {
+    min-height: 520px;
+  }
 }
 
-.checkbtn.active {
-  outline-width: 5px;
-  outline-color: #50BBAA;
+@media (max-width: 640px) {
+  .chart-stage {
+    min-height: 420px;
+  }
 }
 </style>
