@@ -112,6 +112,16 @@ export default {
       }
       return this.isEnglish ? 'Bar mode' : '柱状图模式'
     },
+    categoryI18n() {
+      return {
+        '冲锋枪': 'Submachine Guns',
+        '步枪': 'Assault Rifles',
+        '机枪': 'Light Machine Guns',
+        '霰弹枪': 'Shotguns',
+        '神射手': 'Marksman Weapons',
+        '狙击枪': 'Sniper Rifles'
+      }
+    },
     selectionSummary() {
       const count = this.categories.filter(cat => this.filter[cat]).length
       if (count === 0) {
@@ -377,7 +387,7 @@ export default {
           :class="{ active: filter[category] }"
           @click="changeFilter(category)"
         >
-          {{ category }}
+          {{ isEnglish ? (categoryI18n[category] || category) : category }}
         </button>
         <button class="filter-chip" :class="{ active: ALL }" @click="handleAll">
           {{ isEnglish ? 'All archetypes' : '全部大类' }}

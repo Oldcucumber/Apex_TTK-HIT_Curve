@@ -12,7 +12,7 @@ const cn = {
         "P2020_Dual_CarePackage": "空投-双持P2020(固定22)",
         "RE45": "精英RE45(紫扩27)",
         "Mozambique_Dual": "双持莫桑比克(紫栓)",
-        "Mozambique": "单持莫桑比-克(紫栓)",
+        "Mozambique": "单持莫桑比克(紫栓)",
         "Eva_8": "EVA-8(紫栓8发)",
         "Eva_8_Ballistic": "彩弹-EVA-8(紫栓9发)",
         "Peacekeeper": "和平捍卫者(紫栓)",

@@ -1,6 +1,5 @@
 <script>
 import * as echarts from 'echarts'
-import names from '@/data/id_name.js'
 import ttks from '@/data/id_stats.js'
 
 const CHART_THEME = {
@@ -17,30 +16,30 @@ export default {
     lang: { type: Object, required: true }
   },
   data() {
-    const formData = Object.keys(names).reduce((acc, cur) => {
-      acc[cur] = ''
-      return acc
-    }, {})
-
     return {
       name: this.lang.names,
-      formData,
+      formData: {},
       jsonText: '',
       chartInstance: null,
-      ttk: ttks
+      ttk: ttks,
+      toastMessage: '',
+      toastKind: ''
     }
   },
   computed: {
     isEnglish() {
       return this.lang?.labels?.hit_rate === 'Hit Rate'
     },
+    entryCount() {
+      return Object.keys(this.name).length
+    },
     uiText() {
       return this.isEnglish
         ? {
             successCopy: 'JSON copied to clipboard.',
-            failedCopy: 'Copy failed. Check browser clipboard permission.',
+            failedCopy: 'Copy failed. Check clipboard permission.',
             invalidJson: 'Invalid JSON object.',
-            parseSuccess: 'JSON parsed and the form has been updated.',
+            parseSuccess: 'JSON parsed and form updated.',
             parseFailed: 'JSON parse failed',
             chartEmpty: 'No valid TTK value found for this entry',
             summary: 'Weapons filled'
@@ -49,7 +48,7 @@ export default {
             successCopy: 'JSON 已复制到剪贴板。',
             failedCopy: '复制失败，请检查浏览器剪贴板权限。',
             invalidJson: '无效的 JSON 对象。',
-            parseSuccess: 'JSON 读取成功，表单已更新。',
+            parseSuccess: 'JSON 已读取，表单已更新。',
             parseFailed: 'JSON 解析失败',
             chartEmpty: '未找到有效的 TTK 数值',
             summary: '已填写武器数'
@@ -65,7 +64,17 @@ export default {
       return Object.values(this.formData).filter(value => value !== '').length
     }
   },
+  watch: {
+    'lang.names': {
+      immediate: true,
+      handler(newNames) {
+        this.name = newNames
+        this.rebuildFormData()
+      }
+    }
+  },
   mounted() {
+    this.rebuildFormData()
     this.chartInstance = echarts.init(this.$refs.chartContainer2)
     window.addEventListener('resize', this.handleWindowResize)
   },
@@ -77,6 +86,21 @@ export default {
     }
   },
   methods: {
+    rebuildFormData() {
+      const fd = {}
+      for (const id of Object.keys(this.name)) {
+        fd[id] = this.formData[id] || ''
+      }
+      this.formData = fd
+    },
+    showToast(message, kind) {
+      this.toastMessage = message
+      this.toastKind = kind
+      setTimeout(() => {
+        this.toastMessage = ''
+        this.toastKind = ''
+      }, 3200)
+    },
     handleWindowResize() {
       if (!this.chartInstance) return
       if (this.isFormDataEmpty) {
@@ -87,34 +111,26 @@ export default {
     },
     copyToClipboard() {
       navigator.clipboard.writeText(this.jsonText)
-        .then(() => {
-          alert(this.uiText.successCopy)
-        })
-        .catch(() => {
-          alert(this.uiText.failedCopy)
-        })
+        .then(() => this.showToast(this.uiText.successCopy, ''))
+        .catch(() => this.showToast(this.uiText.failedCopy, 'error'))
     },
     parseAndUpdate() {
       try {
         const parsedData = JSON.parse(this.jsonText)
-
         if (typeof parsedData !== 'object' || parsedData === null || Array.isArray(parsedData)) {
           throw new Error(this.uiText.invalidJson)
         }
-
         for (const key in parsedData) {
-          if (Object.prototype.hasOwnProperty.call(this.formData, key)) {
+          if (Object.prototype.hasOwnProperty.call(this.name, key)) {
             this.formData[key] = parsedData[key]
           }
         }
-
         if (!this.isFormDataEmpty) {
           this.generate()
         }
-
-        alert(this.uiText.parseSuccess)
+        this.showToast(this.uiText.parseSuccess, '')
       } catch (error) {
-        alert(`${this.uiText.parseFailed}: ${error.message}`)
+        this.showToast(`${this.uiText.parseFailed}: ${error.message}`, 'error')
       }
     },
     findTTK(name, percentage) {
@@ -190,11 +206,10 @@ export default {
       for (const key of notEmptyKeys) {
         notEmptyJSON[key] = this.formData[key]
         const ttkValue = this.findTTK(key, this.formData[key])
-
         if (ttkValue !== 0) {
-          series.push({ name: this.name[key], value: ttkValue, category: 1 })
+          series.push({ name: this.name[key] || key, value: ttkValue, category: 1 })
         } else {
-          series.push({ name: this.name[key], value: 5, category: 2 })
+          series.push({ name: this.name[key] || key, value: 5, category: 2 })
         }
       }
 
@@ -214,14 +229,12 @@ export default {
       const chartHeight = Math.max(220, 100 + processedData.length * 44)
 
       this.chartInstance.clear()
-      this.chartInstance.resize({
-        width: chartWidth,
-        height: chartHeight
-      })
+      this.chartInstance.resize({ width: chartWidth, height: chartHeight })
       this.chartInstance.setOption(this.buildChartOption(processedData), true)
     },
     changeLang() {
       this.name = this.lang.names
+      this.rebuildFormData()
       if (!this.isFormDataEmpty || !this.isTextEmpty) {
         this.generate()
       }
@@ -245,6 +258,12 @@ export default {
       <span class="section-badge">{{ uiText.summary }} · {{ filledCount }}</span>
     </section>
 
+    <Transition name="toast-fade">
+      <div v-if="toastMessage" class="toast-bar" :class="{ 'toast-error': toastKind === 'error' }" role="status">
+        {{ toastMessage }}
+      </div>
+    </Transition>
+
     <div class="list-layout">
       <section class="surface-card form-card">
         <div class="surface-header">
@@ -259,11 +278,11 @@ export default {
           <div class="stat-card compact-stat">
             <p class="stat-label">{{ uiText.summary }}</p>
             <p class="stat-value">{{ filledCount }}</p>
-            <p class="stat-meta">{{ isEnglish ? 'out of 41 entries' : '共 41 项' }}</p>
+            <p class="stat-meta">{{ isEnglish ? `out of ${entryCount} entries` : `共 ${entryCount} 项` }}</p>
           </div>
         </div>
 
-        <div class="form-grid">
+        <div class="form-grid" :class="{ 'form-grid-scroll-end': filledCount > 20 }">
           <label v-for="(itemName, id) in name" :key="id" class="input-card">
             <span class="weapon-name">{{ itemName }}</span>
             <div class="percent-field">
@@ -302,6 +321,9 @@ export default {
         </div>
 
         <div ref="chartViewport" class="chart-scroll">
+          <div v-if="isFormDataEmpty" class="empty-state" style="padding:24px;text-align:center;">
+            {{ isEnglish ? 'Fill in at least one hit rate and press Generate.' : '请至少填写一项命中率数据并点击生成。' }}
+          </div>
           <div ref="chartContainer2" class="self-chart"></div>
         </div>
 
@@ -340,6 +362,32 @@ export default {
   min-width: 160px;
 }
 
+.toast-bar {
+  padding: 14px 20px;
+  border-radius: 18px;
+  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+  font-size: 0.92rem;
+  margin-bottom: 0;
+}
+
+.toast-bar.toast-error {
+  background: rgba(255, 180, 171, 0.18);
+  color: var(--md-sys-color-error);
+  border: 1px solid rgba(255, 180, 171, 0.28);
+}
+
+.toast-fade-enter-active,
+.toast-fade-leave-active {
+  transition: opacity 240ms ease, transform 240ms ease;
+}
+
+.toast-fade-enter-from,
+.toast-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -347,6 +395,9 @@ export default {
   max-height: 760px;
   overflow: auto;
   padding-right: 4px;
+  scroll-behavior: smooth;
+  -webkit-mask-image: linear-gradient(to bottom, black 92%, transparent 100%);
+  mask-image: linear-gradient(to bottom, black 92%, transparent 100%);
 }
 
 .input-card {
@@ -359,6 +410,12 @@ export default {
   border-radius: 22px;
   border: 1px solid var(--md-sys-color-outline-variant);
   background: rgba(255, 255, 255, 0.03);
+  transition: border-color 180ms ease, background 180ms ease;
+}
+
+.input-card:focus-within {
+  border-color: rgba(151, 203, 255, 0.38);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .weapon-name {
@@ -417,6 +474,7 @@ export default {
 
 .code-area {
   font-family: ui-monospace, 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+  min-height: 120px;
 }
 
 .output-actions {

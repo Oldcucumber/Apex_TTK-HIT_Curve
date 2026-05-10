@@ -183,7 +183,8 @@ export default {
         : `已选 ${this.selectedClassCount} 个类别`
     },
     cardSummary() {
-      return this.isEnglish ? '39 weapons · 0–100% hit rate' : '39 把武器 · 0–100% 命中率'
+      const count = this.ttk.length
+      return this.isEnglish ? `${count} weapons · 0–100% hit rate` : `${count} 把武器 · 0–100% 命中率`
     },
     helpText() {
       return this.isEnglish
@@ -378,6 +379,7 @@ export default {
       }
     },
     initChart() {
+      if (!this.$refs.chartContainer) return
       this.chartInstance = markRaw(echarts.init(this.$refs.chartContainer))
       const initialOptions = this.updateAxisRange({ ...DEFAULT_OPTIONS, series: this.ttk })
       this.chartInstance.setOption(initialOptions)

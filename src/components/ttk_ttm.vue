@@ -102,6 +102,16 @@ export default {
       }
       return this.isEnglish ? `${count} archetypes selected` : `已选 ${count} 个大类`
     },
+    categoryI18n() {
+      return {
+        '冲锋枪': 'Submachine Guns',
+        '步枪': 'Assault Rifles',
+        '机枪': 'Light Machine Guns',
+        '霰弹枪': 'Shotguns',
+        '神射手': 'Marksman Weapons',
+        '狙击枪': 'Sniper Rifles'
+      }
+    },
     guideCards() {
       return this.isEnglish
         ? [
@@ -321,7 +331,7 @@ export default {
           :class="{ active: filter[category] }"
           @click="changeFilter(category)"
         >
-          {{ category }}
+          {{ isEnglish ? (categoryI18n[category] || category) : category }}
         </button>
         <button class="filter-chip" :class="{ active: ALL }" @click="handleAll">
           {{ isEnglish ? 'All archetypes' : '全部大类' }}
@@ -388,13 +398,11 @@ export default {
   line-height: 1.6;
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 960px) {
   .analysis-layout {
     grid-template-columns: 1fr;
   }
-}
 
-@media (max-width: 960px) {
   .chart-card,
   .guide-card,
   .filter-card {
