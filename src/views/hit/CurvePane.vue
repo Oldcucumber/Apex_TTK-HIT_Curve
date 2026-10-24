@@ -3,7 +3,7 @@ import { computed, reactive, ref } from 'vue'
 import { curveGroups, curves } from '../../data/curves.js'
 import { classVar } from '../../data/meta.js'
 import { store } from '../../store.js'
-import { clsName, t, tr } from '../../i18n/index.js'
+import { clsName, fullName, shortName, t } from '../../i18n/index.js'
 import { useChart } from '../../charts/useChart.js'
 import { axis, distinctPalette, shade, slider, tokens, tooltip } from '../../charts/theme.js'
 
@@ -20,9 +20,8 @@ const legendOpen = ref(false)
 const visible = computed(() => curves.filter(c => !hidden.has(c.id)))
 const few = computed(() => visible.value.length <= FEW)
 
-const label = c => tr(c.name)
-// "R99冲锋枪(紫扩27)" -> "R99冲锋枪": attachment notes are noise on an end label
-const shortLabel = c => label(c).replace(/\s*[(（][^)）]*[)）]\s*$/, '')
+const label = c => fullName(c.weapon)
+const shortLabel = c => shortName(c.weapon, 18)
 
 /** Colour of every curve for the current theme and selection. */
 const colors = computed(() => {
@@ -137,7 +136,7 @@ const filteredGroups = computed(() => {
   const q = query.value.trim().toLowerCase()
   if (!q) return curveGroups
   return curveGroups
-    .map(g => ({ ...g, items: g.items.filter(c => `${c.name.zh} ${c.name.en} ${c.id}`.toLowerCase().includes(q)) }))
+    .map(g => ({ ...g, items: g.items.filter(c => [...c.weapon.name.zh, ...c.weapon.name.en].join(' ').toLowerCase().includes(q)) }))
     .filter(g => g.items.length)
 })
 

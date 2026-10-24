@@ -1,9 +1,9 @@
 <script setup>
 import { computed, onBeforeUnmount, reactive, ref } from 'vue'
-import { curveById, curveGroups, curves, ttkAt } from '../../data/curves.js'
+import { LEGACY_IDS, curveById, curveGroups, curves, ttkAt } from '../../data/curves.js'
 import { classVar } from '../../data/meta.js'
 import { store } from '../../store.js'
-import { clsName, t, tr } from '../../i18n/index.js'
+import { clsName, fullName, t } from '../../i18n/index.js'
 import { useChart } from '../../charts/useChart.js'
 import { axis, slider, tooltip } from '../../charts/theme.js'
 
@@ -12,7 +12,7 @@ const ROW_H = 18
 const host = ref(null)
 // Form keys are the curve ids, which are also the keys of the exported JSON
 const form = reactive(Object.fromEntries(curves.map(c => [c.id, ''])))
-const nameOfId = id => tr(curveById.get(id).name)
+const nameOfId = id => fullName(curveById.get(id).weapon)
 const result = ref([]) // [{ id, value, valid }]
 const json = ref('')
 const jsonOpen = ref(false)
@@ -60,7 +60,10 @@ const parse = () => {
   try {
     const data = JSON.parse(json.value)
     if (typeof data !== 'object' || data === null || Array.isArray(data)) throw new Error(t('hr.invalid'))
-    for (const k of Object.keys(data)) if (k in form) form[k] = data[k]
+    for (const [k, v] of Object.entries(data)) {
+      const id = k in form ? k : LEGACY_IDS[k] // accept JSON saved by older versions
+      if (id in form) form[id] = v
+    }
     if (filled.value) generate()
     say(t('hr.parsed'))
   } catch (e) {

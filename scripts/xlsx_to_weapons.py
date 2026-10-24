@@ -116,6 +116,12 @@ def split_name(name):
     return name, ''
 
 
+def slug(*parts):
+    """Stable, readable id from the English name (sheet row numbers change between updates)."""
+    text = ' '.join(p for p in parts if p).lower()
+    return re.sub(r'[^a-z0-9]+', '-', text).strip('-')
+
+
 def translate(table, text, missing):
     """Translate a name; compound states ("A；B") are translated part by part."""
     if not text:
@@ -175,6 +181,11 @@ def main():
             w['note'] = {'zh': note, 'en': translate(names_en['note'], note, missing)}
         if raw:
             w['raw'] = raw
+        en_base, en_state = w['name']['en']
+        key = slug(en_base, en_state)
+        while any(x['key'] == key for x in weapons):
+            key += '-2'
+        w = {'key': key, **w}
         weapons.append(w)
 
     # One weapon per line keeps diffs readable when the sheet changes
