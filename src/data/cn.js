@@ -42,27 +42,6 @@ const cn = {
         "Sentinel": "普通哨兵(紫扩7)",
         "Sentinel_Charged": "充电哨兵(紫扩7)",
         "Charge_200m": "充能步枪-连发200m(紫扩9)"
-    },
-    classes: {
-        "AR": "突击步枪",
-        "SMG": "冲锋枪",
-        "LMG": "轻机枪",
-        "Marksman": "精确射手步枪",
-        "Sniper": "狙击枪",
-        "Shotgun": "霰弹枪",
-        "Pistols": "手枪"
-    },
-    labels: {
-        "ttk_curve": "TTK-命中率表",
-        "self_test": "命中率自测",
-        "ttk_ttm": "TTK-TTM表",
-        "flex": "灵活性柱状图",
-        "ori_doc": "原始文档链接",
-        "hit_rate": "命中率",
-        "generate": "生成",
-        "copy": "复制到剪贴板",
-        "parse_json": "读取并更新表单",
-        "paste_here": "这里可以粘贴JSON数据",
     }
 }
 

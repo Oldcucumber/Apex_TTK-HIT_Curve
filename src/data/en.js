@@ -42,27 +42,6 @@ const en = {
         "Sentinel": "Sentinel (Purple Mag 7)",
         "Sentinel_Charged": "Sentinel - Charged (Purple Mag 7)",
         "Charge_200m": "Charge Rifle - Burst 200m (Purple Mag 9)"
-    },
-    classes: {
-        "AR": "Assault Rifles",
-        "SMG": "Submachine Guns",
-        "LMG": "Light Machine Guns",
-        "Marksman": "Marksman Weapons",
-        "Sniper": "Sniper Rifles",
-        "Shotgun": "Shotguns",
-        "Pistols": "Pistols"
-    },
-    labels: {
-        "ttk_curve": "TTK-HIT Curve",
-        "self_test": "TTK Self Test",
-        "ttk_ttm": "TTK-TTM Table",
-        "flex": "Flexibility Bar Chart",
-        "ori_doc": "Original Document Link",
-        "hit_rate": "Hit Rate",
-        "generate": "Generate",
-        "copy": "Copy to clipboard",
-        "parse_json": "Read JSON and update form",
-        "paste_here": "You can paste JSON data here",
     }
 }
 
