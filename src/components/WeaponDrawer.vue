@@ -1,61 +1,71 @@
 <script setup>
-import { computed } from 'vue'
-import { ARMORS, classOf } from '../data/meta.js'
-import { METRIC, display, value } from '../data/metrics.js'
+import { computed, onBeforeUnmount, onMounted } from 'vue'
+import { ARMORS, classVar } from '../data/meta.js'
+import { METRIC, cell, display, value } from '../data/metrics.js'
 import { store, toggleCompare, MAX_COMPARE } from '../store.js'
-import { ammoName, clsName, t } from '../i18n/index.js'
+import { ammoName, armorName, clsName, metricName, nameOf, t, tr } from '../i18n/index.js'
 
-const props = defineProps({ weapon: { type: Object, required: true } })
-defineEmits(['close'])
+const props = defineProps({
+  weapon: { type: Object, required: true },
+  // phones: render as a bottom sheet over the page
+  sheet: { type: Boolean, default: false }
+})
+const emit = defineEmits(['close'])
 
 const w = computed(() => props.weapon)
-const color = computed(() => `var(${classOf(w.value.cls)?.color})`)
+const name = computed(() => nameOf(w.value))
+const color = computed(() => classVar(w.value.cls))
 const inCompare = computed(() => store.compare.includes(w.value.id))
 const full = computed(() => !inCompare.value && store.compare.length >= MAX_COMPARE)
 
-const raw = (path, fallback) => w.value.raw?.[path] ?? fallback
-const num = v => (v == null ? '—' : v)
+const sec = v => v.toFixed(2)
+const mul = v => `${v.toFixed(2)}x`
 
 const armorRows = computed(() => {
-  const times = ARMORS.map(a => w.value.ttk[a.key])
-  const max = Math.max(0.01, ...times.filter(v => v != null))
+  const times = ARMORS.map(a => w.value.ttk[a.key]).filter(v => v != null)
+  const max = Math.max(0.01, ...times)
   return ARMORS.map(a => ({
     ...a,
-    ttk: raw(`ttk.${a.key}`, w.value.ttk[a.key] == null ? '—' : w.value.ttk[a.key].toFixed(2)),
-    shots: raw(`bullets.${a.key}`, num(w.value.bullets[a.key])),
+    ttk: cell(w.value, `ttk.${a.key}`, sec),
+    shots: cell(w.value, `bullets.${a.key}`),
     pct: w.value.ttk[a.key] == null ? 0 : Math.max(3, (w.value.ttk[a.key] / max) * 100)
   }))
 })
 
-const meters = computed(() =>
-  ['recoil', 'hipAcc', 'handling'].map(k => ({
-    key: k,
-    label: store.lang === 'en' ? METRIC[k].en : METRIC[k].cn,
-    v: value(w.value, METRIC[k]),
-    text: display(w.value, METRIC[k])
-  }))
-)
-
 const zones = computed(() => [
-  { label: t('dr.chest'), dmg: raw('dmg.chest', num(w.value.dmg.chest)), mul: '1.00x' },
-  { label: t('dr.leg'), dmg: raw('dmg.leg', num(w.value.dmg.leg)), mul: raw('dmg.legMul', w.value.dmg.legMul != null ? `${w.value.dmg.legMul.toFixed(2)}x` : '') },
-  { label: t('dr.head'), dmg: raw('dmg.head', num(w.value.dmg.head)), mul: raw('dmg.headMul', w.value.dmg.headMul != null ? `${w.value.dmg.headMul.toFixed(2)}x` : '') }
+  { label: t('dr.chest'), dmg: cell(w.value, 'dmg.chest'), mul: '1.00x' },
+  { label: t('dr.leg'), dmg: cell(w.value, 'dmg.leg'), mul: cell(w.value, 'dmg.legMul', mul) },
+  { label: t('dr.head'), dmg: cell(w.value, 'dmg.head'), mul: cell(w.value, 'dmg.headMul', mul) }
 ])
 
 const mags = computed(() => [
-  { label: t('dr.none'), v: raw('mag.none', num(w.value.mag.none)) },
-  ...ARMORS.slice(0, 3).map(a => ({ label: store.lang === 'en' ? a.en : a.cn.replace('甲', '弹匣'), v: raw(`mag.${a.key}`, num(w.value.mag[a.key])) }))
+  { label: t('dr.none'), v: cell(w.value, 'mag.none') },
+  ...['white', 'blue', 'purple'].map(k => ({ label: t(`dr.mag.${k}`), v: cell(w.value, `mag.${k}`) }))
 ])
 
-const big = computed(() => [
-  { key: 'ttk', m: METRIC.ttk },
-  { key: 'ttm', m: METRIC.ttm },
-  { key: 'dps', m: METRIC.dps }
-].map(x => ({ label: store.lang === 'en' ? x.m.en : x.m.cn, v: display(w.value, x.m, store.armor), unit: x.m.unit })))
+const big = computed(() => ['ttk', 'ttm', 'dps'].map(k => ({
+  label: metricName(METRIC[k]),
+  v: display(w.value, METRIC[k], store.armor),
+  unit: METRIC[k].unit
+})))
+
+const meters = computed(() => ['recoil', 'hipAcc', 'handling'].map(k => ({
+  key: k,
+  label: metricName(METRIC[k]),
+  v: value(w.value, METRIC[k]),
+  text: display(w.value, METRIC[k])
+})))
+
+const kv = keys => keys.map(k => ({ k, label: metricName(METRIC[k]), v: display(w.value, METRIC[k], store.armor, { unit: true }) }))
+
+const onKey = e => { if (e.key === 'Escape') emit('close') }
+onMounted(() => window.addEventListener('keydown', onKey))
+onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 </script>
 
 <template>
-  <aside class="card drawer" :style="{ '--dot': color }">
+  <div v-if="sheet" class="scrim" @click="$emit('close')"></div>
+  <aside class="card drawer" :class="{ sheet }" :style="{ '--dot': color }" role="dialog" :aria-label="name.base">
     <header>
       <div class="titles">
         <div class="meta">
@@ -63,8 +73,8 @@ const big = computed(() => [
           <span>{{ clsName(w.cls) }}</span>
           <span class="tag">{{ ammoName(w.ammo) }}</span>
         </div>
-        <h2>{{ w.base }}</h2>
-        <p v-if="w.state" class="muted">{{ w.state }}</p>
+        <h2>{{ name.base }}</h2>
+        <p v-if="name.state" class="muted">{{ name.state }}</p>
       </div>
       <button class="icon-btn" :aria-label="t('dr.close')" @click="$emit('close')">
         <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" /></svg>
@@ -83,10 +93,10 @@ const big = computed(() => [
       <ul class="armor">
         <li v-for="a in armorRows" :key="a.key" :class="{ cur: a.key === store.armor }">
           <i class="dot" :style="{ '--dot': `var(${a.color})` }"></i>
-          <span class="a-name">{{ store.lang === 'en' ? a.en : a.cn }}</span>
+          <span class="a-name">{{ armorName(a.key) }}</span>
           <span class="track"><span :style="{ width: `${a.pct}%`, background: `var(${a.color})` }"></span></span>
           <span class="num a-val">{{ a.ttk }}<small>s</small></span>
-          <span class="num muted a-shots">{{ a.shots }}{{ t('dr.shots') }}</span>
+          <span class="num muted a-shots">{{ a.shots }} {{ t('dr.shots') }}</span>
         </li>
       </ul>
 
@@ -109,8 +119,7 @@ const big = computed(() => [
 
       <h3 class="label">{{ t('dr.tol') }}</h3>
       <div class="kv">
-        <span>{{ store.lang === 'en' ? METRIC.tolerance.en : METRIC.tolerance.cn }}</span><b class="num">{{ display(w, METRIC.tolerance) }}</b>
-        <span>{{ store.lang === 'en' ? METRIC.magDmg.en : METRIC.magDmg.cn }}</span><b class="num">{{ display(w, METRIC.magDmg) }}</b>
+        <template v-for="r in kv(['tolerance', 'magDmg'])" :key="r.k"><span>{{ r.label }}</span><b class="num">{{ r.v }}</b></template>
       </div>
 
       <h3 class="label">{{ t('dr.handling') }}</h3>
@@ -122,16 +131,12 @@ const big = computed(() => [
         </li>
       </ul>
       <div class="kv">
-        <span>{{ store.lang === 'en' ? METRIC.reloadEmpty.en : METRIC.reloadEmpty.cn }}</span><b class="num">{{ display(w, METRIC.reloadEmpty, store.armor, { unit: true }) }}</b>
-        <span>{{ store.lang === 'en' ? METRIC.reloadTac.en : METRIC.reloadTac.cn }}</span><b class="num">{{ display(w, METRIC.reloadTac, store.armor, { unit: true }) }}</b>
-        <span>{{ store.lang === 'en' ? METRIC.run.en : METRIC.run.cn }}</span><b class="num">{{ display(w, METRIC.run) }}</b>
-        <span>{{ store.lang === 'en' ? METRIC.hip.en : METRIC.hip.cn }}</span><b class="num">{{ display(w, METRIC.hip) }}</b>
-        <span>{{ store.lang === 'en' ? METRIC.ads.en : METRIC.ads.cn }}</span><b class="num">{{ display(w, METRIC.ads) }}</b>
+        <template v-for="r in kv(['reloadEmpty', 'reloadTac', 'run', 'hip', 'ads'])" :key="r.k"><span>{{ r.label }}</span><b class="num">{{ r.v }}</b></template>
       </div>
 
       <template v-if="w.note">
         <h3 class="label">{{ t('dr.note') }}</h3>
-        <p class="note">{{ w.note }}</p>
+        <p class="note">{{ tr(w.note) }}</p>
       </template>
     </div>
 
@@ -234,7 +239,8 @@ small {
 
 .armor li {
   display: grid;
-  grid-template-columns: 8px 34px minmax(0, 1fr) 52px 34px;
+  grid-template-columns: 8px 50px minmax(0, 1fr) 52px 58px;
+  white-space: nowrap;
   align-items: center;
   gap: 8px;
   color: var(--text-2);
@@ -313,7 +319,7 @@ small {
 
 .meters li {
   display: grid;
-  grid-template-columns: 74px minmax(0, 1fr) 38px;
+  grid-template-columns: minmax(70px, max-content) minmax(0, 1fr) 38px;
   align-items: center;
   gap: 8px;
   color: var(--text-2);
@@ -341,5 +347,39 @@ footer {
 footer .btn {
   width: 100%;
   height: 34px;
+}
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(0, 0, 0, 0.38);
+}
+
+.drawer.sheet {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 61;
+  max-height: 86vh;
+  border-radius: 18px 18px 0 0;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.drawer.sheet header::before {
+  content: '';
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  width: 36px;
+  height: 4px;
+  margin-left: -18px;
+  border-radius: 4px;
+  background: var(--line-2);
+}
+
+.drawer.sheet header {
+  position: relative;
+  padding-top: 18px;
 }
 </style>

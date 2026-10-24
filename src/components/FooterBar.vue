@@ -1,7 +1,7 @@
 <script setup>
 import { ref } from 'vue'
-import { meta } from '../data/weapons.js'
-import { t } from '../i18n/index.js'
+import { meta } from '../data/metrics.js'
+import { seasonLabel, t } from '../i18n/index.js'
 
 const people = ['Oldcucumber', 'Rebel-Gloria', 'StarVerseZ', 'passby6someone']
 
@@ -30,7 +30,7 @@ const updated = meta.updated.replaceAll('-', '/')
 
 <template>
   <footer class="footer">
-    <span>{{ t('footer.updated') }} <b>{{ updated }}</b> · {{ meta.season }}</span>
+    <span>{{ t('footer.updated') }} <b>{{ updated }}</b> · {{ seasonLabel(meta) }}</span>
     <a href="https://github.com/Oldcucumber/Apex_TTK-HIT_Curve" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
     <span class="people" tabindex="0">
       {{ t('footer.contributors') }}

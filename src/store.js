@@ -22,14 +22,22 @@ const hashTab = () => {
   return TABS.includes(t) ? t : 'overview'
 }
 
+const storedLang = read('apex-lang', '')
+const browserLang = typeof navigator !== 'undefined' && !/^zh/i.test(navigator.language || 'zh') ? 'en' : 'zh'
+const mobileQuery = typeof matchMedia === 'function' ? matchMedia('(max-width: 760px)') : null
+
 export const store = reactive({
-  lang: read('apex-lang', 'cn'),
+  // 'cn' is the value older versions stored
+  lang: storedLang === 'cn' ? 'zh' : storedLang === 'en' || storedLang === 'zh' ? storedLang : browserLang,
   theme: read('apex-theme', prefersDark ? 'dark' : 'light'),
   armor: 'purple',
   tab: hashTab(),
   compare: [],
-  selected: null
+  selected: null,
+  mobile: mobileQuery?.matches ?? false
 })
+
+mobileQuery?.addEventListener('change', e => { store.mobile = e.matches })
 
 export const MAX_COMPARE = 4
 

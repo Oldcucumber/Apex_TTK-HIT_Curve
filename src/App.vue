@@ -37,6 +37,8 @@ const views = {
 <style scoped>
 .app {
   display: grid;
+  /* minmax(0, 1fr): never let a wide child (e.g. a sideways-scrolling chip row) widen the page */
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr) auto;
   height: 100vh;
 }
@@ -54,6 +56,16 @@ const views = {
 
   .main {
     padding: 8px 12px;
+  }
+}
+
+@media (max-width: 760px) {
+  .app {
+    padding-bottom: calc(64px + env(safe-area-inset-bottom));
+  }
+
+  .main {
+    padding: 4px 12px 12px;
   }
 }
 </style>

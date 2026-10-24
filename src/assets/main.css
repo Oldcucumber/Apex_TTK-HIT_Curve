@@ -18,7 +18,8 @@
   --text-3: #6f6f68;
   --ink: #191917;
   --on-ink: #ffffff;
-  --accent: #ff5a36;
+  --brand: #3f8f87;
+  --accent: #3f8f87;
   --shadow: 0 1px 2px rgba(24, 24, 20, 0.04), 0 6px 20px rgba(24, 24, 20, 0.05);
 
   --c-smg: #0d9488;
@@ -49,7 +50,8 @@
   --text-3: #93938c;
   --ink: #f2f2f0;
   --on-ink: #0b0b0c;
-  --accent: #ff6a47;
+  --brand: #5fbcb1;
+  --accent: #5fbcb1;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
 
   --c-smg: #2dd4bf;
@@ -386,6 +388,35 @@ select.field {
   }
 }
 
+/* phones: keep content clear of the bottom tab bar, scroll filter rows sideways */
+@media (max-width: 760px) {
+  body {
+    font-size: 14px;
+  }
+
+  .toolbar {
+    gap: 8px;
+  }
+
+  body {
+    overflow-x: hidden;
+  }
+
+  .scroll-x {
+    flex: 0 0 calc(100% + 24px);
+    flex-wrap: nowrap !important;
+    min-width: 0;
+    margin: 0 -12px;
+    padding: 0 12px 2px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .scroll-x::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 /* compare slots (one colour per selected weapon) */
 :root,
 :root[data-theme='light'] {
@@ -401,3 +432,4 @@ select.field {
   --k3: #2dd4bf;
   --k4: #c084fc;
 }
+

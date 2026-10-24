@@ -1,10 +1,9 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { weapons } from '../data/weapons.js'
-import { ARMORS, classOf } from '../data/meta.js'
-import { METRIC, display, extent, fullName, metricLabel, value } from '../data/metrics.js'
+import { ARMORS, classVar } from '../data/meta.js'
+import { METRIC, display, extent, isAbility, isApprox, value, weaponById, weapons } from '../data/metrics.js'
 import { store, toggleCompare, MAX_COMPARE } from '../store.js'
-import { ammoName, clsName, t } from '../i18n/index.js'
+import { ammoName, clsName, fullName, metricName, nameOf, t } from '../i18n/index.js'
 import ClassFilter from '../components/ClassFilter.vue'
 import Seg from '../components/Seg.vue'
 import WeaponDrawer from '../components/WeaponDrawer.vue'
@@ -26,12 +25,17 @@ const presetOptions = computed(() =>
 
 const columns = computed(() => PRESETS[preset.value].map(k => METRIC[k]))
 
+// Search text covers both languages, so "R-99" or "冲锋枪" work whatever the UI language
+const haystack = new Map(
+  weapons.map(w => [w.id, [...w.name.zh, ...w.name.en, w.cls, w.ammo].join(' ').toLowerCase()])
+)
+
 const rows = computed(() => {
   const q = query.value.trim().toLowerCase()
   const list = weapons.filter(w => {
     if (classes.value.length && !classes.value.includes(w.cls)) return false
     if (!q) return true
-    return `${fullName(w)} ${w.cls} ${w.ammo} ${clsName(w.cls)} ${ammoName(w.ammo)}`.toLowerCase().includes(q)
+    return haystack.get(w.id).includes(q) || `${clsName(w.cls)} ${ammoName(w.ammo)}`.toLowerCase().includes(q)
   })
   const { key, dir } = sort.value
   const m = METRIC[key]
@@ -44,7 +48,7 @@ const rows = computed(() => {
       if (vb == null) return -1
       return (va - vb) * mul || a.id - b.id
     }
-    if (key === 'name') return fullName(a).localeCompare(fullName(b), 'zh') * mul
+    if (key === 'name') return fullName(a).localeCompare(fullName(b), store.lang) * mul
     if (key === 'cls') return a.cls.localeCompare(b.cls, 'zh') * mul || a.id - b.id
     return (a.id - b.id) * mul
   })
@@ -77,7 +81,7 @@ const leaders = computed(() =>
     const ranked = rows.value
       .map(w => ({ w, v: value(w, m, store.armor) }))
       // abilities are not weapon picks, and ranged values are not a definite lead
-      .filter(x => x.v != null && x.w.ammo !== '技能' && !x.w.raw?.[m.armor ? `${m.path.split('.')[0]}.${store.armor}` : m.path])
+      .filter(x => x.v != null && !isAbility(x.w) && !isApprox(x.w, m, store.armor))
       .sort((a, b) => (m.dir === 'low' ? a.v - b.v : b.v - a.v))
     const [first, second] = ranked
     return {
@@ -95,14 +99,16 @@ const leaders = computed(() =>
 const gapText = l => {
   if (l.gap == null) return ''
   // a gap that rounds to zero at display precision reads as a tie
-  if (Number((l.m.pct ? l.gap * 100 : l.gap).toFixed(l.m.dec)) === 0) return t('ov.lead.tie', { n: l.second.base })
+  if (Number((l.m.pct ? l.gap * 100 : l.gap).toFixed(l.m.dec)) === 0) return t('ov.lead.tie', { n: nameOf(l.second).base })
   const v = l.m.pct ? `${(l.gap * 100).toFixed(0)}%` : `${l.gap.toFixed(l.m.dec)}${l.m.unit}`
   return t('ov.lead.gap', { v })
 }
 
-const selected = computed(() => weapons.find(w => w.id === store.selected) || null)
+const selected = computed(() => weaponById.get(store.selected) ?? null)
 const select = w => { store.selected = store.selected === w.id ? null : w.id }
-const color = w => `var(${classOf(w.cls)?.color})`
+const color = w => classVar(w.cls)
+// On phones the sorted metric is shown next to each name instead of a wide table
+const sortMetric = computed(() => METRIC[sort.value.key] ?? METRIC.ttk)
 const inCompare = w => store.compare.includes(w.id)
 const compareFull = computed(() => store.compare.length >= MAX_COMPARE)
 
@@ -134,13 +140,43 @@ const armorColor = computed(() => `var(${ARMORS.find(a => a.key === store.armor)
           <i v-if="l.m.armor" class="dot armor-dot" :style="{ '--dot': armorColor }"></i>
         </span>
         <strong class="num">{{ l.text }}</strong>
-        <span v-if="l.w" class="lead-name"><i class="dot"></i><b>{{ l.w.base }}</b><em v-if="l.w.state">{{ l.w.state }}</em></span>
+        <span v-if="l.w" class="lead-name"><i class="dot"></i><b>{{ nameOf(l.w).base }}</b><em v-if="nameOf(l.w).state">{{ nameOf(l.w).state }}</em></span>
         <span class="lead-gap muted">{{ gapText(l) }}</span>
       </button>
     </div>
 
     <div class="body" :class="{ withDrawer: selected }">
-      <div class="card table-card">
+      <div v-if="store.mobile" class="card mlist-card">
+        <div class="msort">
+          <span class="label">{{ t('ov.sortBy') }}</span>
+          <select :value="sort.key" class="field" @change="sortBy($event.target.value)">
+            <option v-for="m in columns" :key="m.key" :value="m.key">{{ metricName(m) }}</option>
+          </select>
+        </div>
+        <ul class="mlist">
+          <li
+            v-for="(w, i) in rows"
+            :key="w.id"
+            :class="{ active: store.selected === w.id }"
+            :style="{ '--dot': color(w) }"
+            @click="select(w)"
+          >
+            <span class="m-idx muted num">{{ i + 1 }}</span>
+            <i class="dot"></i>
+            <span class="m-name">
+              <b>{{ nameOf(w).base }}</b>
+              <small>{{ [nameOf(w).state, clsName(w.cls)].filter(Boolean).join(' · ') }}</small>
+            </span>
+            <span class="m-val num">
+              <span class="bar" :style="{ '--w': `${barWidth(w, sortMetric)}%` }"></span>
+              <b>{{ display(w, sortMetric, store.armor, { unit: true }) }}</b>
+            </span>
+          </li>
+        </ul>
+        <div v-if="!rows.length" class="empty">{{ t('ov.empty') }}</div>
+      </div>
+
+      <div v-else class="card table-card">
         <div class="scroll">
           <table>
             <thead>
@@ -162,7 +198,7 @@ const armorColor = computed(() => `var(${ARMORS.find(a => a.key === store.armor)
                   :aria-sort="ariaSort(m.key)"
                   @click="sortBy(m.key)"
                 >
-                  <i v-if="m.armor" class="dot armor-dot" :style="{ '--dot': armorColor }"></i>{{ metricLabel(m, store.lang) }}<i class="arrow"></i>
+                  <i v-if="m.armor" class="dot armor-dot" :style="{ '--dot': armorColor }"></i>{{ metricName(m) }}<i class="arrow"></i>
                 </th>
               </tr>
             </thead>
@@ -189,8 +225,8 @@ const armorColor = computed(() => `var(${ARMORS.find(a => a.key === store.armor)
                 <td class="c-idx muted">{{ i + 1 }}</td>
                 <td class="c-name">
                   <i class="dot"></i>
-                  <b>{{ w.base }}</b>
-                  <span v-if="w.state" class="muted">{{ w.state }}</span>
+                  <b>{{ nameOf(w).base }}</b>
+                  <span v-if="nameOf(w).state" class="muted">{{ nameOf(w).state }}</span>
                 </td>
                 <td class="c-cls">{{ clsName(w.cls) }}</td>
                 <td class="c-ammo"><span class="tag">{{ ammoName(w.ammo) }}</span></td>
@@ -205,7 +241,7 @@ const armorColor = computed(() => `var(${ARMORS.find(a => a.key === store.armor)
         </div>
       </div>
 
-      <WeaponDrawer v-if="selected" :weapon="selected" @close="store.selected = null" />
+      <WeaponDrawer v-if="selected" :weapon="selected" :sheet="store.mobile" @close="store.selected = null" />
     </div>
   </section>
 </template>
@@ -409,7 +445,7 @@ tbody tr.active td:nth-child(2) {
 .c-name {
   width: 30%;
   max-width: 0;
-  min-width: 220px;
+  min-width: 190px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -490,12 +526,16 @@ tr.active .pick {
   opacity: 0.25 !important;
 }
 
+/* keep th sticky: only body cells are positioned (for the in-cell bar) */
 th.c-num,
 td.c-num {
-  position: relative;
   width: 96px;
   min-width: 86px;
   text-align: right;
+}
+
+td.c-num {
+  position: relative;
 }
 
 .bar {
@@ -555,6 +595,139 @@ td.sorted .val {
 
   .table-card {
     max-height: 70vh;
+  }
+}
+.mlist-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.msort {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.mlist {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mlist li {
+  display: grid;
+  grid-template-columns: 22px 8px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 52px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--grid);
+}
+
+.mlist li.active {
+  background: color-mix(in srgb, var(--dot) 10%, transparent);
+}
+
+.m-idx {
+  font-size: 12px;
+  text-align: right;
+}
+
+.m-name {
+  display: grid;
+  min-width: 0;
+  line-height: 1.3;
+}
+
+.m-name b,
+.m-name small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.m-name b {
+  font-weight: 600;
+}
+
+.m-name small {
+  color: var(--text-3);
+  font-size: 12px;
+}
+
+.m-val {
+  position: relative;
+  min-width: 84px;
+  padding: 4px 8px;
+  text-align: right;
+}
+
+.m-val .bar {
+  inset: 2px 0;
+}
+
+.m-val b {
+  position: relative;
+  font-weight: 650;
+}
+
+@media (max-width: 760px) {
+  .toolbar {
+    flex-wrap: wrap;
+  }
+
+  .toolbar .grow,
+  .count {
+    display: none;
+  }
+
+  .search {
+    flex: 1;
+    min-width: 0;
+    width: auto;
+  }
+
+  .leaders {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .lead {
+    padding: 9px 11px;
+  }
+
+  .lead strong {
+    font-size: 19px;
+  }
+
+  .lead-gap {
+    display: none;
+  }
+
+  .body,
+  .body.withDrawer {
+    display: block;
+  }
+}
+
+/* laptops: make room for the drawer by dropping the least useful columns */
+@media (max-width: 1500px) {
+  .count {
+    display: none;
+  }
+
+  .withDrawer .c-ammo {
+    display: none;
+  }
+}
+
+@media (max-width: 1280px) {
+  .withDrawer .c-cls {
+    display: none;
   }
 }
 </style>

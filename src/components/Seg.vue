@@ -13,6 +13,7 @@ defineEmits(['update:modelValue'])
       v-for="o in options"
       :key="o.value"
       :aria-pressed="modelValue === o.value"
+      :title="o.title"
       @click="$emit('update:modelValue', o.value)"
     >
       <i v-if="o.color" class="dot" :style="{ '--dot': o.color }"></i>

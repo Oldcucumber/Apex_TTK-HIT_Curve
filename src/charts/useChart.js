@@ -32,7 +32,7 @@ export function useChart(el, build, sources = [], onSize) {
   }
 
   onMounted(() => {
-    chart.value = echarts.init(el.value, null, { renderer: 'canvas' })
+    chart.value = echarts.init(el.value, null, { renderer: 'svg' })
     render()
     stop = observeResize(el.value, () => {
       if (!active || !el.value?.clientWidth) return

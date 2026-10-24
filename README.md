@@ -22,17 +22,24 @@
 | 对比 | 选择 2–4 把武器，雷达图 + 逐项数据对比 |
 | 命中率 | 命中率-TTK 曲线，以及命中率自测（可导入/导出 JSON） |
 
-界面支持浅色 / 深色主题和中文 / English，选择会被记住。
+界面支持浅色 / 深色主题和中文 / English（默认跟随浏览器语言），选择会被记住；手机上使用底部导航。
 
 ## 数据更新
 
-武器数据来自社区 xlsx 的 `数据表2.0` 工作表，生成方式：
+所有数据都是 `src/data/` 下的 JSON：
+
+| 文件 | 内容 | 来源 |
+| :--- | :--- | :--- |
+| `weapons.json` | 59 条武器状态的伤害、TTK、TTM、换弹、移速、操控等，含中英文名称 | 社区 xlsx 的 `数据表2.0` 工作表，由脚本生成 |
+| `curves.json` | 命中率-TTK 曲线（紫甲），点为 `[命中率%, TTK秒]` | 手工维护，尚未并入 `数据表2.0` |
+
+更新 `weapons.json`：
 
 ```bash
-python3 scripts/xlsx_to_weapons.py 老葛你又在打电动-APEX枪械数据.xlsx   # 输出 src/data/weapons.js
+python3 scripts/xlsx_to_weapons.py 老葛你又在打电动-APEX枪械数据.xlsx
 ```
 
-脚本只依赖 Python 标准库。命中率曲线（`src/data/id_stats.js`）仍是手工维护的数据，尚未并入 `数据表2.0`。
+脚本只依赖 Python 标准库；英文名称在 `scripts/names_en.json` 中维护，缺少翻译时脚本会列出。界面文字在 `src/i18n/locales/` 下。
 
 -----
 

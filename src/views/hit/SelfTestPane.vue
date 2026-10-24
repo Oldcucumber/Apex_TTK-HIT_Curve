@@ -1,40 +1,28 @@
 <script setup>
 import { computed, onBeforeUnmount, reactive, ref } from 'vue'
-import ttks from '../../data/id_stats.js'
-import classes from '../../data/Class.js'
-import cn from '../../data/cn.js'
-import en from '../../data/en.js'
-import { CURVE_CLASS, classOf } from '../../data/meta.js'
+import { curveById, curveGroups, curves, ttkAt } from '../../data/curves.js'
+import { classVar } from '../../data/meta.js'
 import { store } from '../../store.js'
-import { clsName, t } from '../../i18n/index.js'
+import { clsName, t, tr } from '../../i18n/index.js'
 import { useChart } from '../../charts/useChart.js'
 import { axis, slider, tooltip } from '../../charts/theme.js'
 
 const ROW_H = 18
 
 const host = ref(null)
-const names = computed(() => (store.lang === 'en' ? en.names : cn.names))
-const form = reactive(Object.fromEntries(Object.keys(cn.names).map(id => [id, ''])))
+// Form keys are the curve ids, which are also the keys of the exported JSON
+const form = reactive(Object.fromEntries(curves.map(c => [c.id, ''])))
+const nameOfId = id => tr(curveById.get(id).name)
 const result = ref([]) // [{ id, value, valid }]
 const json = ref('')
 const jsonOpen = ref(false)
 const toast = ref({ text: '', error: false })
 let timer = null
 
-const groups = Object.entries(classes).map(([key, ids]) => ({
-  key,
-  cls: CURVE_CLASS[key],
-  ids: ids.filter(id => id in cn.names)
-}))
-const classOfId = Object.fromEntries(groups.flatMap(g => g.ids.map(id => [id, g.cls])))
 
 const filled = computed(() => Object.values(form).filter(v => v !== '' && v != null).length)
-const total = Object.keys(cn.names).length
+const total = curves.length
 
-const findTTK = (id, pct) => {
-  for (const [x, y] of ttks[id] || []) if (x <= pct / 100) return y
-  return 0
-}
 
 const say = (text, error = false) => {
   toast.value = { text, error }
@@ -49,8 +37,8 @@ const generate = () => {
   for (const id of Object.keys(form)) {
     if (form[id] === '' || form[id] == null) continue
     out[id] = form[id]
-    const v = findTTK(id, Number(form[id]))
-    rows.push({ id, value: v || 5, valid: v !== 0 })
+    const v = ttkAt(curveById.get(id), Number(form[id]))
+    rows.push({ id, value: v ?? 5, valid: v != null })
   }
   json.value = JSON.stringify(out, null, 2)
   rows.sort((a, b) => (a.valid === b.valid ? a.value - b.value : a.valid ? -1 : 1))
@@ -97,7 +85,7 @@ const build = tk => {
     yAxis: {
       type: 'category',
       inverse: true,
-      data: rows.map(r => names.value[r.id]),
+      data: rows.map(r => nameOfId(r.id)),
       axisLine: { show: false },
       axisTick: { show: false },
       axisLabel: { color: tk.soft, fontSize: 11, interval: 0, width: 190, overflow: 'truncate' }
@@ -117,15 +105,14 @@ const build = tk => {
         value: r.value,
         valid: r.valid,
         itemStyle: r.valid
-          ? { color: tk.cls[classOfId[r.id]] }
+          ? { color: tk.cls[curveById.get(r.id).cls] }
           : { color: 'transparent', borderColor: tk.muted, borderWidth: 1, borderType: 'dashed' }
       }))
     }]
   }
 }
 
-const api = useChart(host, build, [result, names], () => result.value.length && api.render())
-const color = g => `var(${classOf(g.cls).color})`
+const api = useChart(host, build, [result, () => store.mobile], () => result.value.length && api.render())
 </script>
 
 <template>
@@ -136,13 +123,13 @@ const color = g => `var(${classOf(g.cls).color})`
         <span class="muted num">{{ t('hr.fill') }} {{ filled }} / {{ total }}</span>
       </header>
       <div class="scroll">
-        <section v-for="g in groups" :key="g.key" :style="{ '--dot': color(g) }">
+        <section v-for="g in curveGroups" :key="g.cls" :style="{ '--dot': classVar(g.cls) }">
           <h4><i class="dot"></i>{{ clsName(g.cls) }}</h4>
           <div class="grid">
-            <label v-for="id in g.ids" :key="id">
-              <span :title="names[id]">{{ names[id] }}</span>
+            <label v-for="c in g.items" :key="c.id">
+              <span :title="nameOfId(c.id)">{{ nameOfId(c.id) }}</span>
               <input
-                v-model="form[id]"
+                v-model="form[c.id]"
                 class="field"
                 type="number"
                 min="0"
@@ -337,6 +324,39 @@ label .field {
   .chart {
     height: 420px;
     flex: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .scroll {
+    max-height: none;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .out header {
+    flex-wrap: wrap;
+    padding: 8px 10px;
+  }
+
+  .chart {
+    height: 60vh;
+  }
+
+  .json {
+    flex-direction: column;
+    height: auto;
+  }
+
+  .json textarea {
+    height: 140px;
+  }
+
+  .acts {
+    flex-direction: row;
+    width: auto;
   }
 }
 </style>

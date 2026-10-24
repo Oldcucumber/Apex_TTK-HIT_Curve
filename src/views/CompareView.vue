@@ -1,10 +1,9 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { weapons } from '../data/weapons.js'
-import { CLASSES, classOf } from '../data/meta.js'
-import { METRICS, METRIC, display, fullName, metricLabel, percentile, value } from '../data/metrics.js'
+import { classOf, classVar } from '../data/meta.js'
+import { GROUPS, METRICS, METRIC, byBest, display, isAbility, percentile, value, weaponById, weapons } from '../data/metrics.js'
 import { store, toggleCompare, MAX_COMPARE } from '../store.js'
-import { clsName, t } from '../i18n/index.js'
+import { clsName, fullName, metricName, nameOf, t } from '../i18n/index.js'
 import { useChart } from '../charts/useChart.js'
 import { FONT, tooltip } from '../charts/theme.js'
 
@@ -22,21 +21,20 @@ const AXES = [
 const query = ref('')
 const host = ref(null)
 
-const chosen = computed(() => store.compare.map(id => weapons.find(w => w.id === id)).filter(Boolean))
+const chosen = computed(() => store.compare.map(id => weaponById.get(id)).filter(Boolean))
 const slotColor = i => `var(${SLOT_VARS[i]})`
 const full = computed(() => store.compare.length >= MAX_COMPARE)
 
 const list = computed(() => {
   const q = query.value.trim().toLowerCase()
-  const order = Object.fromEntries(CLASSES.map((c, i) => [c.key, i]))
   return weapons
-    .filter(w => !q || `${fullName(w)} ${w.cls} ${clsName(w.cls)}`.toLowerCase().includes(q))
-    .sort((a, b) => order[a.cls] - order[b.cls] || a.id - b.id)
+    .filter(w => !q || [...w.name.zh, ...w.name.en, clsName(w.cls)].join(' ').toLowerCase().includes(q))
+    .sort((a, b) => classOf(a.cls).order - classOf(b.cls).order || a.id - b.id)
 })
 
 const rows = computed(() => {
   const rowsOut = []
-  for (const g of ['combat', 'tolerance', 'handling']) {
+  for (const g of GROUPS) {
     rowsOut.push({ group: g })
     for (const m of METRICS.filter(x => x.group === g)) {
       const vals = chosen.value.map(w => value(w, m, store.armor))
@@ -72,11 +70,11 @@ const build = tk => {
     tooltip: { ...tooltip(tk), trigger: 'item' },
     radar: {
       indicator: AXES.map(a => ({ name: t(`cp.ax.${a.id}`), max: 100 })),
-      radius: '66%',
+      radius: store.mobile ? '60%' : '66%',
       center: ['50%', '52%'],
       splitNumber: 4,
       alignTicks: false,
-      axisName: { color: tk.soft, fontSize: 12, fontFamily: FONT },
+      axisName: { color: tk.soft, fontSize: store.mobile ? 11 : 12, fontFamily: FONT },
       axisLine: { lineStyle: { color: tk.line } },
       splitLine: { lineStyle: { color: tk.line } },
       splitArea: { show: false }
@@ -95,7 +93,7 @@ const build = tk => {
   }
 }
 
-useChart(host, build, [chosen, () => store.armor])
+useChart(host, build, [chosen, () => store.armor, () => store.mobile])
 const clear = () => { store.compare.splice(0) }
 
 // One-click starting points for an empty comparison
@@ -103,8 +101,8 @@ const PRESETS = ['ttk', 'dps', 'ttm']
 const pickTop = key => {
   const m = METRIC[key]
   const top = weapons
-    .filter(w => w.ammo !== '技能' && value(w, m, store.armor) != null)
-    .sort((a, b) => (m.dir === 'low' ? 1 : -1) * (value(a, m, store.armor) - value(b, m, store.armor)))
+    .filter(w => !isAbility(w) && value(w, m, store.armor) != null)
+    .sort(byBest(m, store.armor))
     .slice(0, 3)
   store.compare.splice(0, store.compare.length, ...top.map(w => w.id))
 }
@@ -121,7 +119,7 @@ const pickTop = key => {
       <ul class="chosen">
         <li v-for="(w, i) in chosen" :key="w.id" :style="{ '--slot': slotColor(i) }">
           <i class="swatch"></i>
-          <span class="nm"><b>{{ w.base }}</b><small v-if="w.state">{{ w.state }}</small></span>
+          <span class="nm"><b>{{ nameOf(w).base }}</b><small v-if="nameOf(w).state">{{ nameOf(w).state }}</small></span>
           <button class="icon-btn" :aria-label="t('dr.remove')" @click="toggleCompare(w.id)">
             <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" /></svg>
           </button>
@@ -136,12 +134,12 @@ const pickTop = key => {
           v-for="w in list"
           :key="w.id"
           :class="{ on: store.compare.includes(w.id), off: full && !store.compare.includes(w.id) }"
-          :style="{ '--dot': `var(${classOf(w.cls)?.color})` }"
+          :style="{ '--dot': classVar(w.cls) }"
           :title="full && !store.compare.includes(w.id) ? t('cp.full', { n: MAX_COMPARE }) : ''"
           @click="toggleCompare(w.id)"
         >
           <i class="dot"></i>
-          <span class="nm"><b>{{ w.base }}</b><small v-if="w.state">{{ w.state }}</small></span>
+          <span class="nm"><b>{{ nameOf(w).base }}</b><small v-if="nameOf(w).state">{{ nameOf(w).state }}</small></span>
           <span class="num muted">{{ display(w, METRIC.ttk, store.armor) }}s</span>
         </li>
       </ul>
@@ -153,7 +151,7 @@ const pickTop = key => {
       <ul v-if="chosen.length" class="profiles">
         <li v-for="pf in profiles" :key="pf.w.id" :style="{ '--slot': slotColor(pf.i) }">
           <i class="swatch"></i>
-          <b>{{ pf.w.base }}</b>
+          <b>{{ nameOf(pf.w).base }}</b>
           <span class="up">{{ pf.top.map(s => `${t(`cp.ax.${s.id}`)} ${s.p}`).join(' · ') }}</span>
           <span v-if="pf.low" class="down">{{ t(`cp.ax.${pf.low.id}`) }} {{ pf.low.p }}</span>
         </li>
@@ -162,7 +160,7 @@ const pickTop = key => {
         <div>
           <p>{{ t('cp.empty') }}</p>
           <div class="quick">
-            <button v-for="k in PRESETS" :key="k" class="btn" @click="pickTop(k)">{{ t('cp.top3', { m: metricLabel(METRIC[k], store.lang) }) }}</button>
+            <button v-for="k in PRESETS" :key="k" class="btn" @click="pickTop(k)">{{ t('cp.top3', { m: metricName(METRIC[k]) }) }}</button>
           </div>
         </div>
       </div>
@@ -176,8 +174,8 @@ const pickTop = key => {
             <tr>
               <th></th>
               <th v-for="(w, i) in chosen" :key="w.id" :style="{ '--slot': slotColor(i) }">
-                <i class="swatch"></i>{{ w.base }}
-                <small v-if="w.state">{{ w.state }}</small>
+                <i class="swatch"></i>{{ nameOf(w).base }}
+                <small v-if="nameOf(w).state">{{ nameOf(w).state }}</small>
               </th>
             </tr>
           </thead>
@@ -185,7 +183,7 @@ const pickTop = key => {
             <template v-for="r in rows" :key="r.group || r.m.key">
               <tr v-if="r.group" class="grp"><td :colspan="chosen.length + 1">{{ t(`preset.${r.group}`) }}</td></tr>
               <tr v-else>
-                <td class="k">{{ metricLabel(r.m, store.lang) }}</td>
+                <td class="k">{{ metricName(r.m) }}</td>
                 <td v-for="(c, i) in r.cells" :key="i" class="num" :class="{ best: c.best }" :title="c.best ? t('cp.best') : ''">{{ c.text }}</td>
               </tr>
             </template>
@@ -484,6 +482,37 @@ tr.grp td {
   .radar-host {
     height: 360px;
     flex: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .picker .list {
+    max-height: 220px;
+  }
+
+  .radar-host {
+    height: 300px;
+  }
+
+  .profiles li {
+    display: grid;
+    grid-template-columns: 14px minmax(0, 1fr) auto;
+    gap: 2px 6px;
+    white-space: normal;
+  }
+
+  .profiles .up {
+    grid-column: 2 / -1;
+  }
+
+  .profiles .down {
+    grid-column: 3;
+    grid-row: 1;
+    margin-left: 0;
+  }
+
+  th small {
+    max-width: 80px;
   }
 }
 </style>

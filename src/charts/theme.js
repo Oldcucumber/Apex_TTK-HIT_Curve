@@ -53,6 +53,13 @@ export const slider = tk => ({
   textStyle: { color: tk.muted }
 })
 
+/** 12 well-separated hues for when only a handful of series are on screen. */
+const DISTINCT = {
+  light: ['#2563eb', '#dc2626', '#16a34a', '#d97706', '#7c3aed', '#0891b2', '#db2777', '#4d7c0f', '#ea580c', '#4338ca', '#0f766e', '#a16207'],
+  dark: ['#60a5fa', '#f87171', '#4ade80', '#fbbf24', '#a78bfa', '#22d3ee', '#f472b6', '#a3e635', '#fb923c', '#818cf8', '#2dd4bf', '#facc15']
+}
+export const distinctPalette = theme => DISTINCT[theme] ?? DISTINCT.light
+
 /** Lighten (t > 0) or darken (t < 0) a #rrggbb / rgb() colour. */
 export const shade = (color, t) => {
   const m = color.startsWith('#')

@@ -2,16 +2,18 @@
 import { computed } from 'vue'
 import { store } from '../store.js'
 import { ARMORS } from '../data/meta.js'
-import { t } from '../i18n/index.js'
+import { armorName, t } from '../i18n/index.js'
+import ApexLogo from './ApexLogo.vue'
 import Seg from './Seg.vue'
 
-const tabs = ['overview', 'explore', 'compare', 'hitrate']
+const TABS = ['overview', 'explore', 'compare', 'hitrate']
 const DOC_URL = 'https://docs.qq.com/sheet/DVHRMRG9Jdm5Udm10?tab=000001'
 
 const armorOptions = computed(() =>
   ARMORS.map(a => ({
     value: a.key,
-    label: store.lang === 'en' ? a.en : a.cn,
+    label: store.mobile ? t(`armor.short.${a.key}`) : armorName(a.key),
+    title: `${armorName(a.key)} (${a.hp})`,
     color: `var(${a.color})`
   }))
 )
@@ -20,14 +22,14 @@ const showArmor = computed(() => store.tab !== 'hitrate')
 
 <template>
   <header class="topbar">
-    <div class="brand">
-      <span class="mark" aria-hidden="true"><i></i></span>
+    <a class="brand" href="#overview" @click.prevent="store.tab = 'overview'">
+      <ApexLogo />
       <strong>Apex Weapons Lab</strong>
-    </div>
+    </a>
 
-    <nav class="tabs" role="tablist">
+    <nav v-if="!store.mobile" class="tabs" role="tablist">
       <button
-        v-for="tab in tabs"
+        v-for="tab in TABS"
         :key="tab"
         role="tab"
         :aria-selected="store.tab === tab"
@@ -40,12 +42,12 @@ const showArmor = computed(() => store.tab !== 'hitrate')
     <div class="grow"></div>
 
     <div v-if="showArmor" class="armor">
-      <span class="label">{{ t('armor') }}</span>
+      <span class="label">{{ t('armor.label') }}</span>
       <Seg v-model="store.armor" :options="armorOptions" />
     </div>
 
-    <button class="btn lang" :title="t('lang.toggle')" @click="store.lang = store.lang === 'cn' ? 'en' : 'cn'">
-      {{ store.lang === 'cn' ? 'EN' : '中' }}
+    <button class="btn lang" :title="t('lang.toggle')" @click="store.lang = store.lang === 'zh' ? 'en' : 'zh'">
+      {{ store.lang === 'zh' ? 'EN' : '中' }}
     </button>
 
     <button
@@ -62,6 +64,25 @@ const showArmor = computed(() => store.tab !== 'hitrate')
       <svg viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h6" /></svg>
     </a>
   </header>
+
+  <!-- Mobile: tabs move to a bottom bar within thumb reach -->
+  <nav v-if="store.mobile" class="tabbar" role="tablist">
+    <button
+      v-for="tab in TABS"
+      :key="tab"
+      role="tab"
+      :aria-selected="store.tab === tab"
+      @click="store.tab = tab"
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path v-if="tab === 'overview'" d="M4 6h16M4 12h16M4 18h10" />
+        <path v-else-if="tab === 'explore'" d="M5 19V5M5 19h14M9 14h.01M13 9h.01M16 13h.01M11 16h.01" />
+        <path v-else-if="tab === 'compare'" d="M12 3 20 8v8l-8 5-8-5V8zM12 8l4 2.5v3L12 16l-4-2.5v-3z" />
+        <path v-else d="M4 19h16M5 16c3-8 6-10 14-11" />
+      </svg>
+      <span>{{ t(`nav.${tab}`) }}</span>
+    </button>
+  </nav>
 </template>
 
 <style scoped>
@@ -80,31 +101,15 @@ const showArmor = computed(() => store.tab !== 'hitrate')
 .brand {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 10px;
   margin-right: 10px;
   white-space: nowrap;
 }
 
 .brand strong {
-  font-size: 14px;
+  font-size: 14.5px;
   font-weight: 650;
   letter-spacing: -0.01em;
-}
-
-.mark {
-  display: grid;
-  place-items: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 7px;
-  background: var(--ink);
-}
-
-.mark i {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--accent);
 }
 
 .tabs {
@@ -141,7 +146,7 @@ const showArmor = computed(() => store.tab !== 'hitrate')
   left: 12px;
   height: 2px;
   border-radius: 2px 2px 0 0;
-  background: var(--ink);
+  background: var(--brand);
 }
 
 .armor {
@@ -156,26 +161,76 @@ const showArmor = computed(() => store.tab !== 'hitrate')
   font-weight: 600;
 }
 
-@media (max-width: 900px) {
+.tabbar {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 40;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  padding: 4px 8px calc(4px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line);
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+.tabbar button {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  padding: 6px 0 4px;
+  border: 0;
+  background: transparent;
+  color: var(--text-3);
+  font-size: 11px;
+}
+
+.tabbar svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.tabbar button[aria-selected='true'] {
+  color: var(--brand);
+  font-weight: 650;
+}
+
+@media (max-width: 760px) {
   .topbar {
     flex-wrap: wrap;
-    gap: 6px 10px;
-    padding: 8px 12px;
+    gap: 8px;
+    min-height: 0;
+    padding: 10px 12px 6px;
   }
 
-  .tabs {
+  .brand strong {
+    font-size: 14px;
+  }
+
+  .armor {
     order: 5;
     width: 100%;
-    overflow-x: auto;
   }
 
-  .tabs button {
-    height: 38px;
-  }
-
-  .brand strong,
   .armor .label {
     display: none;
+  }
+
+  .armor :deep(.seg) {
+    display: grid;
+    flex: 1;
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .armor :deep(.seg button) {
+    justify-content: center;
+    height: 30px;
   }
 }
 </style>
