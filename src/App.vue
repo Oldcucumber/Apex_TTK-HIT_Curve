@@ -1,11 +1,18 @@
 <script setup>
+import { defineAsyncComponent } from 'vue'
 import { store } from './store.js'
 import TopBar from './components/TopBar.vue'
 import FooterBar from './components/FooterBar.vue'
 import OverviewView from './views/OverviewView.vue'
-import ExploreView from './views/ExploreView.vue'
-import CompareView from './views/CompareView.vue'
-import HitRateView from './views/HitRateView.vue'
+
+// Chart views pull in ECharts; load them on demand so the first screen stays light.
+const ExploreView = defineAsyncComponent(() => import('./views/ExploreView.vue'))
+const CompareView = defineAsyncComponent(() => import('./views/CompareView.vue'))
+const HitRateView = defineAsyncComponent(() => import('./views/HitRateView.vue'))
+
+// Warm the chart chunk once the browser is idle
+const idle = window.requestIdleCallback || (cb => setTimeout(cb, 1200))
+idle(() => import('./charts/echarts.js'))
 
 const views = {
   overview: OverviewView,

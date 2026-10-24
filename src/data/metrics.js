@@ -42,11 +42,15 @@ export const display = (w, m, armor = 'purple', { unit = false } = {}) => {
   const path = resolve(m, armor)
   const raw = w.raw?.[path]
   if (raw) return raw === '待测' ? raw : raw.replace(/\s*\d+m~\d+m$/, '')
-  const v = value(w, m, armor)
+  return formatValue(value(w, m, armor), m, { unit })
+}
+
+/** Format a raw number the way a metric is displayed. */
+export const formatValue = (v, m, { unit = false } = {}) => {
   if (v == null) return '—'
-  const num = m.pct ? (v * 100).toFixed(m.dec) : v.toFixed(m.dec)
-  if (!unit) return m.pct ? `${num}%` : num
-  return m.pct ? `${num}%` : `${num}${m.unit}`
+  if (m.pct) return `${(v * 100).toFixed(m.dec)}%`
+  const num = v.toFixed(m.dec)
+  return unit ? `${num}${m.unit}` : num
 }
 
 export const extent = (m, armor = 'purple', list = weapons) => {
@@ -54,14 +58,30 @@ export const extent = (m, armor = 'purple', list = weapons) => {
   return vals.length ? [Math.min(...vals), Math.max(...vals)] : [0, 1]
 }
 
+const columnCache = new Map()
+/** All non-null values of a metric (cached; the dataset is static). */
+const column = (m, armor) => {
+  const key = `${m.key}:${m.armor ? armor : ''}`
+  if (!columnCache.has(key)) columnCache.set(key, weapons.map(x => value(x, m, armor)).filter(x => x != null))
+  return columnCache.get(key)
+}
+
 /** Percentile (0-100, higher is better) of a weapon on a metric across all weapons. */
 export const percentile = (w, m, armor = 'purple') => {
   const v = value(w, m, armor)
   if (v == null) return null
-  const vals = weapons.map(x => value(x, m, armor)).filter(x => x != null)
+  const vals = column(m, armor)
   const worse = vals.filter(x => (m.dir === 'low' ? x > v : x < v)).length
   const same = vals.filter(x => x === v).length
   return Math.round(((worse + (same - 1) / 2) / Math.max(1, vals.length - 1)) * 100)
+}
+
+/** Median of a metric over a list of weapons. */
+export const median = (m, armor = 'purple', list = weapons) => {
+  const vals = list.map(w => value(w, m, armor)).filter(v => v != null).sort((a, b) => a - b)
+  if (!vals.length) return null
+  const mid = vals.length >> 1
+  return vals.length % 2 ? vals[mid] : (vals[mid - 1] + vals[mid]) / 2
 }
 
 export const fullName = w => (w.state ? `${w.base}（${w.state}）` : w.base)

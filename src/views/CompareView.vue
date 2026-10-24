@@ -54,6 +54,17 @@ const rows = computed(() => {
   return rowsOut
 })
 
+// Per-weapon strongest / weakest radar axes, for a quick written read of the chart
+const profiles = computed(() =>
+  chosen.value.map((w, i) => {
+    const scores = AXES
+      .map(a => ({ id: a.id, p: percentile(w, METRIC[a.metric], store.armor) }))
+      .filter(s => s.p != null)
+      .sort((a, b) => b.p - a.p)
+    return { w, i, top: scores.slice(0, 2), low: scores.length > 3 ? scores[scores.length - 1] : null }
+  })
+)
+
 const build = tk => {
   const slots = SLOT_VARS.map(v => getComputedStyle(document.documentElement).getPropertyValue(v).trim())
   return {
@@ -86,6 +97,17 @@ const build = tk => {
 
 useChart(host, build, [chosen, () => store.armor])
 const clear = () => { store.compare.splice(0) }
+
+// One-click starting points for an empty comparison
+const PRESETS = ['ttk', 'dps', 'ttm']
+const pickTop = key => {
+  const m = METRIC[key]
+  const top = weapons
+    .filter(w => w.ammo !== '技能' && value(w, m, store.armor) != null)
+    .sort((a, b) => (m.dir === 'low' ? 1 : -1) * (value(a, m, store.armor) - value(b, m, store.armor)))
+    .slice(0, 3)
+  store.compare.splice(0, store.compare.length, ...top.map(w => w.id))
+}
 </script>
 
 <template>
@@ -128,7 +150,22 @@ const clear = () => { store.compare.splice(0) }
     <div class="card radar">
       <h3 class="label">{{ t('cp.radar') }}</h3>
       <div class="radar-host"><div ref="host" class="chart-host"></div></div>
-      <div v-if="!chosen.length" class="empty cover">{{ t('cp.empty') }}</div>
+      <ul v-if="chosen.length" class="profiles">
+        <li v-for="pf in profiles" :key="pf.w.id" :style="{ '--slot': slotColor(pf.i) }">
+          <i class="swatch"></i>
+          <b>{{ pf.w.base }}</b>
+          <span class="up">{{ pf.top.map(s => `${t(`cp.ax.${s.id}`)} ${s.p}`).join(' · ') }}</span>
+          <span v-if="pf.low" class="down">{{ t(`cp.ax.${pf.low.id}`) }} {{ pf.low.p }}</span>
+        </li>
+      </ul>
+      <div v-if="!chosen.length" class="empty cover">
+        <div>
+          <p>{{ t('cp.empty') }}</p>
+          <div class="quick">
+            <button v-for="k in PRESETS" :key="k" class="btn" @click="pickTop(k)">{{ t('cp.top3', { m: metricLabel(METRIC[k], store.lang) }) }}</button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="card detail">
@@ -304,10 +341,65 @@ small {
   min-height: 0;
 }
 
+.profiles {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 10px 2px 0;
+  border-top: 1px solid var(--line);
+  list-style: none;
+  font-size: 12.5px;
+}
+
+.profiles li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.profiles b {
+  min-width: 84px;
+  font-weight: 600;
+}
+
+.profiles .up {
+  color: var(--text-2);
+}
+
+.profiles .up::before {
+  content: '▲ ';
+  color: var(--c-sniper);
+  font-size: 10px;
+}
+
+.profiles .down {
+  margin-left: auto;
+  color: var(--text-3);
+}
+
+.profiles .down::before {
+  content: '▼ ';
+  color: var(--c-shotgun);
+  font-size: 10px;
+}
+
 .cover {
   position: absolute;
   inset: 40px 14px 14px;
+  height: auto;
   background: var(--panel);
+}
+
+.cover p {
+  margin: 0 0 12px;
+}
+
+.quick {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
 }
 
 .scroll {

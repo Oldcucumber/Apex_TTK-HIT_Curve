@@ -69,6 +69,37 @@ const sortBy = key => {
 
 const ariaSort = key => (sort.value.key === key ? (sort.value.dir === 'asc' ? 'ascending' : 'descending') : 'none')
 
+// Leaders of the current selection, shown as tiles above the table
+const LEADERS = ['ttk', 'dps', 'ttm', 'reloadEmpty']
+const leaders = computed(() =>
+  LEADERS.map(key => {
+    const m = METRIC[key]
+    const ranked = rows.value
+      .map(w => ({ w, v: value(w, m, store.armor) }))
+      // abilities are not weapon picks, and ranged values are not a definite lead
+      .filter(x => x.v != null && x.w.ammo !== '技能' && !x.w.raw?.[m.armor ? `${m.path.split('.')[0]}.${store.armor}` : m.path])
+      .sort((a, b) => (m.dir === 'low' ? a.v - b.v : b.v - a.v))
+    const [first, second] = ranked
+    return {
+      key,
+      label: t(`ov.lead.${key}`),
+      m,
+      w: first?.w,
+      text: first ? display(first.w, m, store.armor, { unit: true }) : '—',
+      gap: first && second ? Math.abs(first.v - second.v) : null,
+      second: second?.w
+    }
+  })
+)
+
+const gapText = l => {
+  if (l.gap == null) return ''
+  // a gap that rounds to zero at display precision reads as a tie
+  if (Number((l.m.pct ? l.gap * 100 : l.gap).toFixed(l.m.dec)) === 0) return t('ov.lead.tie', { n: l.second.base })
+  const v = l.m.pct ? `${(l.gap * 100).toFixed(0)}%` : `${l.gap.toFixed(l.m.dec)}${l.m.unit}`
+  return t('ov.lead.gap', { v })
+}
+
 const selected = computed(() => weapons.find(w => w.id === store.selected) || null)
 const select = w => { store.selected = store.selected === w.id ? null : w.id }
 const color = w => `var(${classOf(w.cls)?.color})`
@@ -86,6 +117,26 @@ const armorColor = computed(() => `var(${ARMORS.find(a => a.key === store.armor)
       <Seg v-model="preset" :options="presetOptions" />
       <input v-model="query" class="field search" type="search" :placeholder="t('ov.search')">
       <span class="muted num count">{{ t('ov.count', { n: rows.length }) }}</span>
+    </div>
+
+    <div class="leaders">
+      <button
+        v-for="l in leaders"
+        :key="l.key"
+        class="card lead"
+        :class="{ on: l.w && store.selected === l.w.id }"
+        :style="l.w ? { '--dot': color(l.w) } : null"
+        :disabled="!l.w"
+        @click="l.w && select(l.w)"
+      >
+        <span class="lead-label">
+          {{ l.label }}
+          <i v-if="l.m.armor" class="dot armor-dot" :style="{ '--dot': armorColor }"></i>
+        </span>
+        <strong class="num">{{ l.text }}</strong>
+        <span v-if="l.w" class="lead-name"><i class="dot"></i><b>{{ l.w.base }}</b><em v-if="l.w.state">{{ l.w.state }}</em></span>
+        <span class="lead-gap muted">{{ gapText(l) }}</span>
+      </button>
     </div>
 
     <div class="body" :class="{ withDrawer: selected }">
@@ -107,6 +158,7 @@ const armorColor = computed(() => `var(${ARMORS.find(a => a.key === store.armor)
                   v-for="m in columns"
                   :key="m.key"
                   class="c-num"
+                  :title="t(`ex.better.${m.dir}`)"
                   :aria-sort="ariaSort(m.key)"
                   @click="sortBy(m.key)"
                 >
@@ -142,8 +194,8 @@ const armorColor = computed(() => `var(${ARMORS.find(a => a.key === store.armor)
                 </td>
                 <td class="c-cls">{{ clsName(w.cls) }}</td>
                 <td class="c-ammo"><span class="tag">{{ ammoName(w.ammo) }}</span></td>
-                <td v-for="m in columns" :key="m.key" class="c-num">
-                  <span class="bar" :style="{ '--w': `${barWidth(w, m)}%` }"></span>
+                <td v-for="m in columns" :key="m.key" class="c-num" :class="{ sorted: m.key === sort.key }">
+                  <span v-if="m.key === sort.key" class="bar" :style="{ '--w': `${barWidth(w, m)}%` }"></span>
                   <span class="val" :class="{ nil: value(w, m, store.armor) == null }">{{ display(w, m, store.armor) }}</span>
                 </td>
               </tr>
@@ -161,6 +213,81 @@ const armorColor = computed(() => `var(${ARMORS.find(a => a.key === store.armor)
 <style scoped>
 .search {
   width: 190px;
+}
+
+.leaders {
+  display: grid;
+  flex-shrink: 0;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.lead {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'label label'
+    'value value'
+    'name gap';
+  align-items: baseline;
+  gap: 2px 10px;
+  padding: 11px 14px 12px;
+  color: var(--text);
+  text-align: left;
+  transition: border-color 140ms ease, transform 140ms ease;
+}
+
+.lead:hover:not(:disabled) {
+  border-color: var(--line-2);
+}
+
+.lead.on {
+  border-color: var(--dot);
+}
+
+.lead-label {
+  grid-area: label;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-3);
+  font-size: 12px;
+}
+
+.lead strong {
+  grid-area: value;
+  font-size: 24px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.lead-name {
+  grid-area: name;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.lead-name b {
+  font-weight: 600;
+}
+
+.lead-name em {
+  overflow: hidden;
+  color: var(--text-3);
+  font-size: 12px;
+  font-style: normal;
+  text-overflow: ellipsis;
+}
+
+.lead-gap {
+  grid-area: gap;
+  font-size: 11.5px;
+  white-space: nowrap;
 }
 
 .count {
@@ -280,6 +407,7 @@ tbody tr.active td:nth-child(2) {
 }
 
 .c-name {
+  width: 30%;
   max-width: 0;
   min-width: 220px;
   overflow: hidden;
@@ -379,7 +507,7 @@ td.c-num {
   border-radius: 4px;
   background: linear-gradient(
     to right,
-    color-mix(in srgb, var(--dot) 15%, transparent) var(--w),
+    color-mix(in srgb, var(--dot) 24%, transparent) var(--w),
     transparent var(--w)
   );
   pointer-events: none;
@@ -389,11 +517,38 @@ td.c-num {
   position: relative;
 }
 
+td.sorted .val {
+  font-weight: 650;
+}
+
 .val.nil {
   color: var(--text-3);
 }
 
+@media (max-height: 700px) {
+  .lead-gap,
+  .lead-name em {
+    display: none;
+  }
+
+  .lead {
+    padding: 8px 12px;
+  }
+
+  .lead strong {
+    font-size: 20px;
+  }
+}
+
 @media (max-width: 900px), (max-height: 560px) {
+  .leaders {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .lead-gap {
+    display: none;
+  }
+
   .body.withDrawer {
     grid-template-columns: minmax(0, 1fr);
   }

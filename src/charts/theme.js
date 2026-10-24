@@ -34,9 +34,9 @@ export const tooltip = tk => ({
 export const axis = (tk, extra = {}) => ({
   axisLine: { lineStyle: { color: tk.line } },
   axisTick: { show: false },
-  axisLabel: { color: tk.muted, fontSize: 11, fontFamily: FONT },
+  axisLabel: { color: tk.muted, fontSize: 12, fontFamily: FONT },
   splitLine: { lineStyle: { color: tk.grid } },
-  nameTextStyle: { color: tk.muted, fontSize: 11, fontFamily: FONT },
+  nameTextStyle: { color: tk.soft, fontSize: 12, fontFamily: FONT },
   ...extra
 })
 
