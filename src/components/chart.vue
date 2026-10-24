@@ -3,16 +3,9 @@ import * as echarts from 'echarts'
 import ttks from '@/data/id_stats.js'
 import { markRaw } from 'vue'
 import classes from '@/data/Class.js'
-import { chartDataFormatter } from '@/utils'
-
-const CHART_THEME = {
-  accent: '#97cbff',
-  accentStrong: '#71e0cf',
-  surface: 'rgba(16, 22, 30, 0.94)',
-  text: '#e2e6ee',
-  muted: '#a6b0c2',
-  grid: 'rgba(166, 176, 194, 0.14)'
-}
+import { chartDataFormatter, observeResize } from '@/utils'
+import chipGroup from './chip-group.vue'
+import { THEME, tooltipBase, axisCommon, sliderStyle, legendBase } from '@/utils/theme'
 
 const DATA_CONSTANTS = {
   Y_AXIS_MIN: 0,
@@ -27,32 +20,23 @@ const DATA_CONSTANTS = {
 
 const DEFAULT_OPTIONS = {
   animationDuration: 320,
+  color: THEME.palette,
   grid: {
-    top: 28,
-    right: 240,
-    bottom: 72,
-    left: 18,
+    top: 16,
+    right: 236,
+    bottom: 56,
+    left: 8,
     containLabel: true
   },
   backgroundColor: 'transparent',
   tooltip: {
+    ...tooltipBase,
     trigger: 'axis',
     axisPointer: {
       type: 'cross',
-      lineStyle: {
-        color: CHART_THEME.accent,
-        width: 1,
-        type: 'dashed'
-      },
-      crossStyle: {
-        color: CHART_THEME.accent
-      }
-    },
-    backgroundColor: CHART_THEME.surface,
-    borderColor: 'rgba(151, 203, 255, 0.28)',
-    borderWidth: 1,
-    textStyle: {
-      color: CHART_THEME.text
+      lineStyle: { color: THEME.accent, width: 1, type: 'dashed' },
+      crossStyle: { color: THEME.accent },
+      label: { backgroundColor: THEME.soft }
     },
     formatter: function () {},
     enterable: true,
@@ -60,62 +44,32 @@ const DEFAULT_OPTIONS = {
     alwaysShowContent: false
   },
   legend: {
+    ...legendBase,
     type: 'scroll',
     orient: 'vertical',
     right: 0,
-    top: 6,
-    bottom: 18,
-    textStyle: {
-      color: CHART_THEME.muted,
-      fontSize: 13
-    },
-    pageTextStyle: {
-      color: CHART_THEME.muted
-    }
+    top: 4,
+    bottom: 8,
+    textStyle: { ...legendBase.textStyle, width: 170, overflow: 'truncate' },
+    tooltip: { show: true }
   },
   xAxis: {
+    ...axisCommon,
     type: 'value',
     min: 0,
     max: 100,
     interval: 10,
-    axisLabel: {
-      formatter: '{value}%',
-      color: CHART_THEME.muted,
-      fontSize: 13
-    },
-    axisLine: {
-      lineStyle: {
-        color: 'rgba(166, 176, 194, 0.3)'
-      }
-    },
-    splitLine: {
-      lineStyle: {
-        color: CHART_THEME.grid
-      }
-    }
+    axisLabel: { ...axisCommon.axisLabel, formatter: '{value}%' }
   },
   yAxis: {
+    ...axisCommon,
     type: 'value',
     min: 0,
     max: 10,
     maxInterval: 1,
     minInterval: 0.3,
     splitNumber: 10,
-    axisLabel: {
-      formatter: value => `${value.toFixed(2)}s`,
-      color: CHART_THEME.muted,
-      fontSize: 13
-    },
-    axisLine: {
-      lineStyle: {
-        color: 'rgba(166, 176, 194, 0.3)'
-      }
-    },
-    splitLine: {
-      lineStyle: {
-        color: CHART_THEME.grid
-      }
-    }
+    axisLabel: { ...axisCommon.axisLabel, formatter: value => `${value.toFixed(2)}s` }
   },
   series: [],
   dataZoom: [
@@ -130,22 +84,14 @@ const DEFAULT_OPTIONS = {
       filterMode: 'none'
     },
     {
+      ...sliderStyle,
       type: 'slider',
       xAxisIndex: [0],
       show: true,
       start: 0,
       end: 100,
-      height: 28,
-      bottom: 18,
-      borderColor: 'rgba(151, 203, 255, 0.14)',
-      fillerColor: 'rgba(151, 203, 255, 0.18)',
-      backgroundColor: 'rgba(255, 255, 255, 0.03)',
-      handleStyle: {
-        color: CHART_THEME.accent
-      },
-      textStyle: {
-        color: CHART_THEME.muted
-      },
+      height: 22,
+      bottom: 8,
       filterMode: 'none'
     }
   ]
@@ -155,16 +101,23 @@ const cloneAxis = axis => (Array.isArray(axis) ? { ...axis[0] } : { ...axis })
 const cloneDataZoom = dataZoom => (Array.isArray(dataZoom) ? dataZoom.map(item => ({ ...item })) : [])
 
 export default {
+  components: { chipGroup },
   props: {
     lang: { type: Object, required: true }
   },
   data() {
     return {
       chartInstance: null,
+      stopResize: null,
       ttk: chartDataFormatter(ttks, this.lang.names),
       classes,
       filter: {},
       ALL: true
+    }
+  },
+  watch: {
+    lang() {
+      this.changeLang()
     }
   },
   computed: {
@@ -182,23 +135,29 @@ export default {
         ? `${this.selectedClassCount} groups selected`
         : `已选 ${this.selectedClassCount} 个类别`
     },
-    cardSummary() {
-      const count = this.ttk.length
-      return this.isEnglish ? `${count} weapons · 0–100% hit rate` : `${count} 把武器 · 0–100% 命中率`
+    visibleCount() {
+      return this.ALL ? this.ttk.length : this.ttk.filter(item => Object.keys(this.filter).some(key => this.filter[key] && this.classes[key].includes(item.id))).length
     },
     helpText() {
       return this.isEnglish
-        ? 'Compare kill-time curves across the full hit-rate range and isolate a class when you want a narrower read.'
-        : '在完整命中率区间内比较击杀时间曲线，并按武器类别快速收窄范围。'
+        ? 'Kill time across the full hit-rate range. Hover to compare, drag to zoom.'
+        : '完整命中率区间内的击杀时间曲线。悬停对比，拖动缩放。'
+    },
+    filterItems() {
+      return Object.keys(this.classes).map(key => ({
+        key,
+        label: this.lang.classes[key],
+        active: Boolean(this.filter[key])
+      }))
     }
   },
   mounted() {
     this.initFilter()
     this.initChart()
-    window.addEventListener('resize', this.handleWindowResize)
+    this.stopResize = observeResize(this.$refs.chartContainer, this.handleWindowResize)
   },
   beforeUnmount() {
-    window.removeEventListener('resize', this.handleWindowResize)
+    if (this.stopResize) this.stopResize()
     if (this.chartInstance) {
       this.chartInstance.dispose()
       this.chartInstance = null
@@ -237,7 +196,7 @@ export default {
         if (!params || params.length === 0) return ''
 
         const hitRate = params[0].value[0]
-        let tooltipContent = `<div style="font-weight:700;margin-bottom:8px;">${this.lang.labels.hit_rate}: ${hitRate.toFixed(1)}%</div>`
+        let tooltipContent = `<div style="font-weight:700;margin-bottom:6px;">${this.lang.labels.hit_rate}: ${hitRate.toFixed(1)}%</div>`
 
         const sortedParams = params
           .filter(param => param.value && param.value[1] !== null)
@@ -249,7 +208,7 @@ export default {
             <div style="display:flex;align-items:center;gap:8px;margin:6px 0;">
               <span style="width:10px;height:10px;border-radius:999px;background:${param.color};display:inline-block;"></span>
               <span style="flex:1;">${param.seriesName}</span>
-              <span style="font-weight:700;color:${index === 0 ? CHART_THEME.accentStrong : CHART_THEME.text};">${ttk.toFixed(3)}s</span>
+              <span style="font-weight:700;color:${index === 0 ? THEME.teal : THEME.text};">${ttk.toFixed(3)}s</span>
             </div>
           `
         })
@@ -434,124 +393,32 @@ export default {
 </script>
 
 <template>
-  <div class="page-shell">
-    <section class="page-header">
-      <div class="page-header-copy">
-        <p class="page-eyebrow">{{ isEnglish ? 'Primary analysis' : '核心分析' }}</p>
-        <h2 class="page-title">{{ lang.labels['ttk_curve'] }}</h2>
-        <p class="page-subtitle">{{ helpText }}</p>
+  <div class="view">
+    <header class="view-head">
+      <div>
+        <h2 class="view-title">{{ lang.labels['ttk_curve'] }}</h2>
+        <p class="view-sub">{{ helpText }}</p>
       </div>
-      <span class="section-badge">{{ selectionSummary }}</span>
-    </section>
-
-    <section class="surface-card chart-card">
-      <div class="surface-header">
-        <div>
-          <h3 class="surface-title">{{ isEnglish ? 'Curve canvas' : '曲线画布' }}</h3>
-          <p class="surface-description">
-            {{ isEnglish
-              ? 'Hover to compare the best performer at each hit rate, and zoom horizontally to inspect narrow windows.'
-              : '悬停可查看同一命中率下的最佳表现者，横向缩放可专注分析某段命中率窗口。' }}
-          </p>
-        </div>
-        <div class="chart-meta">
-          <div class="meta-pill">
-            <span>{{ isEnglish ? 'Range' : '范围' }}</span>
-            <strong>0 - 100%</strong>
-          </div>
-          <div class="meta-pill">
-            <span>{{ isEnglish ? 'Dataset' : '数据' }}</span>
-            <strong>{{ cardSummary }}</strong>
-          </div>
-        </div>
+      <div class="toolbar-group">
+        <span class="badge">{{ isEnglish ? 'Weapons' : '武器' }} <strong>{{ visibleCount }}</strong></span>
+        <span class="badge">{{ isEnglish ? 'Hit rate' : '命中率' }} <strong>0 – 100%</strong></span>
       </div>
+    </header>
 
-      <div ref="chartContainer" class="chart-host chart-stage"></div>
-    </section>
-
-    <section class="surface-card filter-card">
-      <div class="surface-header">
-        <div>
-          <h3 class="surface-title">{{ isEnglish ? 'Weapon groups' : '武器类别' }}</h3>
-          <p class="surface-description">
-            {{ isEnglish
-              ? 'Select one or more groups to reduce the visual noise and inspect similar weapon families together.'
-              : '选择一个或多个武器类别，降低视觉噪声，更专注地比较相近枪系。' }}
-          </p>
-        </div>
-        <span class="section-badge">{{ selectionSummary }}</span>
+    <section class="panel stage">
+      <div class="toolbar">
+        <span class="toolbar-label">{{ isEnglish ? 'Group' : '类别' }}</span>
+        <chip-group
+          :items="filterItems"
+          :all-label="isEnglish ? 'All' : '全部'"
+          :all-active="ALL"
+          @toggle="changeFilter"
+          @all="handleAll"
+        />
       </div>
-
-      <div class="filter-chip-row">
-        <button
-          v-for="(name, index) in lang.classes"
-          :key="index"
-          class="filter-chip"
-          :class="{ active: filter[index] }"
-          @click="changeFilter(index)"
-        >
-          {{ name }}
-        </button>
-        <button class="filter-chip" :class="{ active: ALL }" @click="handleAll">
-          {{ isEnglish ? 'All groups' : '全部类别' }}
-        </button>
+      <div class="well stage-canvas">
+        <div ref="chartContainer" class="chart-host"></div>
       </div>
     </section>
   </div>
 </template>
-
-<style scoped>
-.chart-card,
-.filter-card {
-  padding: 28px;
-}
-
-.chart-stage {
-  min-height: 620px;
-}
-
-.chart-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.meta-pill {
-  min-width: 150px;
-  padding: 14px 16px;
-  border-radius: 22px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--md-sys-color-outline-variant);
-}
-
-.meta-pill span {
-  display: block;
-  margin-bottom: 8px;
-  font-size: 0.78rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--md-sys-color-on-surface-variant);
-}
-
-.meta-pill strong {
-  font-size: 0.96rem;
-  color: var(--md-sys-color-on-surface);
-}
-
-@media (max-width: 960px) {
-  .chart-card,
-  .filter-card {
-    padding: 22px;
-  }
-
-  .chart-stage {
-    min-height: 520px;
-  }
-}
-
-@media (max-width: 640px) {
-  .chart-stage {
-    min-height: 420px;
-  }
-}
-</style>

@@ -1,15 +1,11 @@
 <script>
 import * as echarts from 'echarts'
+import { markRaw } from 'vue'
 import ttks from '@/data/id_stats.js'
+import { observeResize } from '@/utils'
+import { THEME, tooltipBase, axisCommon, sliderStyle } from '@/utils/theme'
 
-const CHART_THEME = {
-  valid: '#8de7c1',
-  invalid: '#ff8f8f',
-  surface: 'rgba(16, 22, 30, 0.94)',
-  text: '#e2e6ee',
-  muted: '#a6b0c2',
-  grid: 'rgba(166, 176, 194, 0.14)'
-}
+const BAR_ROW_HEIGHT = 17
 
 export default {
   props: {
@@ -21,9 +17,11 @@ export default {
       formData: {},
       jsonText: '',
       chartInstance: null,
+      stopResize: null,
       ttk: ttks,
       toastMessage: '',
-      toastKind: ''
+      toastKind: '',
+      toastTimer: null
     }
   },
   computed: {
@@ -42,7 +40,7 @@ export default {
             parseSuccess: 'JSON parsed and form updated.',
             parseFailed: 'JSON parse failed',
             chartEmpty: 'No valid TTK value found for this entry',
-            summary: 'Weapons filled'
+            summary: 'Filled'
           }
         : {
             successCopy: 'JSON 已复制到剪贴板。',
@@ -51,7 +49,7 @@ export default {
             parseSuccess: 'JSON 已读取，表单已更新。',
             parseFailed: 'JSON 解析失败',
             chartEmpty: '未找到有效的 TTK 数值',
-            summary: '已填写武器数'
+            summary: '已填写'
           }
     },
     isFormDataEmpty() {
@@ -65,21 +63,20 @@ export default {
     }
   },
   watch: {
-    'lang.names': {
-      immediate: true,
-      handler(newNames) {
-        this.name = newNames
-        this.rebuildFormData()
-      }
+    lang() {
+      this.changeLang()
     }
   },
-  mounted() {
+  created() {
     this.rebuildFormData()
-    this.chartInstance = echarts.init(this.$refs.chartContainer2)
-    window.addEventListener('resize', this.handleWindowResize)
+  },
+  mounted() {
+    this.chartInstance = markRaw(echarts.init(this.$refs.chartContainer))
+    this.stopResize = observeResize(this.$refs.chartContainer, this.handleWindowResize)
   },
   beforeUnmount() {
-    window.removeEventListener('resize', this.handleWindowResize)
+    if (this.stopResize) this.stopResize()
+    clearTimeout(this.toastTimer)
     if (this.chartInstance) {
       this.chartInstance.dispose()
       this.chartInstance = null
@@ -96,7 +93,8 @@ export default {
     showToast(message, kind) {
       this.toastMessage = message
       this.toastKind = kind
-      setTimeout(() => {
+      clearTimeout(this.toastTimer)
+      this.toastTimer = setTimeout(() => {
         this.toastMessage = ''
         this.toastKind = ''
       }, 3200)
@@ -142,55 +140,77 @@ export default {
       return 0
     },
     buildChartOption(processedData) {
+      const host = this.$refs.chartContainer
+      const fit = Math.max(8, Math.floor(((host?.clientHeight || 500) - 48) / BAR_ROW_HEIGHT))
+      const rows = Math.min(processedData.length, fit)
+      const needsScroll = rows < processedData.length
+
       return {
         animationDuration: 280,
         backgroundColor: 'transparent',
         grid: {
-          top: 22,
-          right: 24,
+          top: 28,
+          right: needsScroll ? 48 : 36,
           bottom: 10,
-          left: 12,
+          left: 8,
           containLabel: true
         },
         tooltip: {
+          ...tooltipBase,
           trigger: 'item',
-          backgroundColor: CHART_THEME.surface,
-          borderColor: 'rgba(151, 203, 255, 0.28)',
-          borderWidth: 1,
-          textStyle: { color: CHART_THEME.text },
           formatter: params => {
             return params.data.category === 1
-              ? `${params.name}<br/>TTK: ${params.value}s`
+              ? `${params.name}<br/>TTK: <b>${params.value}s</b>`
               : `${params.name}<br/>${this.uiText.chartEmpty}`
           }
         },
         xAxis: {
+          ...axisCommon,
           type: 'value',
           position: 'top',
-          axisLabel: { color: CHART_THEME.muted },
-          axisLine: { lineStyle: { color: 'rgba(166, 176, 194, 0.3)' } },
-          splitLine: { lineStyle: { color: CHART_THEME.grid } }
+          axisLabel: { ...axisCommon.axisLabel, formatter: '{value}s' }
         },
         yAxis: {
           type: 'category',
           data: processedData.map(item => item.name),
           inverse: true,
           axisLabel: {
-            color: CHART_THEME.text,
-            width: 220,
+            color: THEME.soft,
+            fontSize: 11,
+            interval: 0,
+            width: 190,
             overflow: 'truncate'
           },
           axisLine: { show: false },
           axisTick: { show: false }
         },
+        dataZoom: needsScroll
+          ? [
+              { type: 'inside', yAxisIndex: 0, startValue: 0, endValue: rows - 1, zoomLock: true, moveOnMouseWheel: true },
+              {
+                ...sliderStyle,
+                type: 'slider',
+                yAxisIndex: 0,
+                right: 6,
+                width: 16,
+                startValue: 0,
+                endValue: rows - 1,
+                zoomLock: true,
+                brushSelect: false,
+                showDetail: false
+              }
+            ]
+          : [],
         series: [
           {
             type: 'bar',
-            barMaxWidth: 18,
+            barMaxWidth: 12,
+            itemStyle: { borderRadius: [0, 6, 6, 0] },
             label: {
               show: true,
               position: 'right',
-              color: CHART_THEME.text,
+              color: THEME.soft,
+              fontSize: 11,
               formatter: ({ data }) => data.category === 1 ? data.value : ''
             },
             data: processedData
@@ -221,16 +241,15 @@ export default {
       ].map(item => ({
         ...item,
         itemStyle: {
-          color: item.category === 1 ? CHART_THEME.valid : CHART_THEME.invalid
+          color: item.category === 1 ? THEME.teal : THEME.danger,
+          opacity: item.category === 1 ? 1 : 0.55
         }
       }))
 
-      const chartWidth = Math.max(420, this.$refs.chartViewport?.clientWidth ?? 480)
-      const chartHeight = Math.max(220, 100 + processedData.length * 44)
-
-      this.chartInstance.clear()
-      this.chartInstance.resize({ width: chartWidth, height: chartHeight })
-      this.chartInstance.setOption(this.buildChartOption(processedData), true)
+      this.chartInstance.resize()
+      this.chartInstance.setOption(this.buildChartOption(processedData), {
+        notMerge: true
+      })
     },
     changeLang() {
       this.name = this.lang.names
@@ -244,101 +263,71 @@ export default {
 </script>
 
 <template>
-  <div class="page-shell">
-    <section class="page-header">
-      <div class="page-header-copy">
-        <p class="page-eyebrow">{{ isEnglish ? 'Practice tool' : '练习工具' }}</p>
-        <h2 class="page-title">{{ lang.labels['self_test'] }}</h2>
-        <p class="page-subtitle">
+  <div class="view">
+    <header class="view-head">
+      <div>
+        <h2 class="view-title">{{ lang.labels['self_test'] }}</h2>
+        <p class="view-sub">
           {{ isEnglish
-            ? 'Fill in your estimated hit rates, then generate a ranked TTK snapshot plus a reusable JSON payload.'
-            : '填入你对自己命中率的估计，生成一张 TTK 排名快照，并导出可复用的 JSON。' }}
+            ? 'Enter your hit rate per weapon to get a ranked TTK snapshot and reusable JSON.'
+            : '填入每把武器的命中率，生成 TTK 排名快照与可复用的 JSON。' }}
         </p>
       </div>
-      <span class="section-badge">{{ uiText.summary }} · {{ filledCount }}</span>
-    </section>
-
-    <Transition name="toast-fade">
-      <div v-if="toastMessage" class="toast-bar" :class="{ 'toast-error': toastKind === 'error' }" role="status">
-        {{ toastMessage }}
+      <div class="toolbar-group">
+        <span class="badge">{{ uiText.summary }} <strong>{{ filledCount }} / {{ entryCount }}</strong></span>
+        <button class="btn btn-primary" :disabled="isFormDataEmpty" @click="generate">
+          {{ lang.labels['generate'] }}
+        </button>
       </div>
-    </Transition>
+    </header>
 
-    <div class="list-layout">
-      <section class="surface-card form-card">
-        <div class="surface-header">
-          <div>
-            <h3 class="surface-title">{{ isEnglish ? 'Input hit rates' : '输入命中率' }}</h3>
-            <p class="surface-description">
-              {{ isEnglish
-                ? 'The form keeps every weapon visible, but the card layout and scroll container make long sessions less painful.'
-                : '所有武器都保留在同一张表单中，通过卡片化布局和内部滚动降低长表单的疲劳感。' }}
-            </p>
-          </div>
-          <div class="stat-card compact-stat">
-            <p class="stat-label">{{ uiText.summary }}</p>
-            <p class="stat-value">{{ filledCount }}</p>
-            <p class="stat-meta">{{ isEnglish ? `out of ${entryCount} entries` : `共 ${entryCount} 项` }}</p>
-          </div>
-        </div>
-
-        <div class="form-grid" :class="{ 'form-grid-scroll-end': filledCount > 20 }">
-          <label v-for="(itemName, id) in name" :key="id" class="input-card">
-            <span class="weapon-name">{{ itemName }}</span>
-            <div class="percent-field">
+    <div class="view-body body-grid">
+      <section class="panel form-panel">
+        <h3 class="panel-title">{{ isEnglish ? 'Hit rates (%)' : '命中率 (%)' }}</h3>
+        <div class="well form-well">
+          <div class="form-grid">
+            <label v-for="(itemName, id) in name" :key="id" class="input-tile">
+              <span class="weapon-name" :title="itemName">{{ itemName }}</span>
               <input
                 v-model="formData[id]"
-                class="text-field percent-input"
+                class="field percent-input"
                 type="number"
                 min="0"
                 max="100"
                 step="0.1"
                 inputmode="decimal"
-                placeholder="0 - 100"
+                placeholder="%"
               >
-              <span class="percent-suffix">%</span>
-            </div>
-          </label>
-        </div>
-
-        <div class="form-actions">
-          <button class="filled-button generate-button" @click="generate" :disabled="isFormDataEmpty">
-            {{ lang.labels['generate'] }}
-          </button>
+            </label>
+          </div>
         </div>
       </section>
 
-      <section class="surface-card output-card">
-        <div class="surface-header">
-          <div>
-            <h3 class="surface-title">{{ isEnglish ? 'Output preview' : '输出预览' }}</h3>
-            <p class="surface-description">
-              {{ isEnglish
-                ? 'The chart ranks your current weapon pool while the JSON box stays ready for copy and later re-import.'
-                : '图表会对当前武器池做排名，JSON 区域则方便复制和之后再次导入。' }}
-            </p>
+      <section class="panel output-panel">
+        <h3 class="panel-title">{{ isEnglish ? 'TTK ranking' : 'TTK 排名' }}</h3>
+        <div class="well chart-well">
+          <div ref="chartContainer" class="chart-host"></div>
+          <div v-if="isFormDataEmpty" class="empty-hint">
+            {{ isEnglish ? 'Fill in at least one hit rate and press Generate.' : '请至少填写一项命中率并点击生成。' }}
           </div>
+          <Transition name="toast">
+            <div v-if="toastMessage" class="toast" :class="{ error: toastKind === 'error' }" role="status">
+              {{ toastMessage }}
+            </div>
+          </Transition>
         </div>
 
-        <div ref="chartViewport" class="chart-scroll">
-          <div v-if="isFormDataEmpty" class="empty-state" style="padding:24px;text-align:center;">
-            {{ isEnglish ? 'Fill in at least one hit rate and press Generate.' : '请至少填写一项命中率数据并点击生成。' }}
-          </div>
-          <div ref="chartContainer2" class="self-chart"></div>
-        </div>
-
-        <div class="field-shell">
-          <span class="field-label">JSON</span>
+        <div class="json-row">
           <textarea
             v-model="jsonText"
             :placeholder="lang.labels['paste_here']"
-            class="text-area code-area"
+            class="textarea"
+            spellcheck="false"
           ></textarea>
-        </div>
-
-        <div class="output-actions">
-          <button class="tonal-button" @click="copyToClipboard" :disabled="isTextEmpty">{{ lang.labels['copy'] }}</button>
-          <button class="outlined-button" @click="parseAndUpdate" :disabled="isTextEmpty">{{ lang.labels['parse_json'] }}</button>
+          <div class="json-actions">
+            <button class="btn" :disabled="isTextEmpty" @click="copyToClipboard">{{ lang.labels['copy'] }}</button>
+            <button class="btn" :disabled="isTextEmpty" @click="parseAndUpdate">{{ lang.labels['parse_json'] }}</button>
+          </div>
         </div>
       </section>
     </div>
@@ -346,163 +335,163 @@ export default {
 </template>
 
 <style scoped>
-.list-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(360px, 0.9fr);
-  gap: 20px;
-  align-items: start;
+.body-grid {
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
 }
 
-.form-card,
-.output-card {
-  padding: 28px;
+.form-panel,
+.output-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
-.compact-stat {
-  min-width: 160px;
+.form-well,
+.chart-well {
+  flex: 1;
 }
 
-.toast-bar {
-  padding: 14px 20px;
-  border-radius: 18px;
-  background: var(--md-sys-color-secondary-container);
-  color: var(--md-sys-color-on-secondary-container);
-  font-size: 0.92rem;
-  margin-bottom: 0;
-}
-
-.toast-bar.toast-error {
-  background: rgba(255, 180, 171, 0.18);
-  color: var(--md-sys-color-error);
-  border: 1px solid rgba(255, 180, 171, 0.28);
-}
-
-.toast-fade-enter-active,
-.toast-fade-leave-active {
-  transition: opacity 240ms ease, transform 240ms ease;
-}
-
-.toast-fade-enter-from,
-.toast-fade-leave-to {
-  opacity: 0;
-  transform: translateY(-8px);
+.form-well {
+  overflow: auto;
+  padding: 10px;
 }
 
 .form-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-  max-height: 760px;
-  overflow: auto;
-  padding-right: 4px;
-  scroll-behavior: smooth;
-  -webkit-mask-image: linear-gradient(to bottom, black 92%, transparent 100%);
-  mask-image: linear-gradient(to bottom, black 92%, transparent 100%);
+  grid-template-columns: repeat(auto-fill, minmax(256px, 1fr));
+  gap: 8px;
 }
 
-.input-card {
+.input-tile {
   display: flex;
-  justify-content: space-between;
-  gap: 12px;
   align-items: center;
-  min-height: 76px;
-  padding: 16px 18px;
-  border-radius: 22px;
-  border: 1px solid var(--md-sys-color-outline-variant);
-  background: rgba(255, 255, 255, 0.03);
-  transition: border-color 180ms ease, background 180ms ease;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 40px;
+  padding: 4px 8px 4px 12px;
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: var(--raised-sm);
 }
 
-.input-card:focus-within {
-  border-color: rgba(151, 203, 255, 0.38);
-  background: rgba(255, 255, 255, 0.05);
+.input-tile:focus-within {
+  box-shadow: var(--raised-sm), 0 0 0 1.5px var(--accent);
 }
 
 .weapon-name {
+  display: -webkit-box;
   flex: 1;
-  line-height: 1.5;
-  color: var(--md-sys-color-on-surface);
-}
-
-.percent-field {
-  position: relative;
-  width: 112px;
-  flex-shrink: 0;
+  min-width: 0;
+  overflow: hidden;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  font-size: 0.8rem;
+  line-height: 1.25;
+  color: var(--text-soft);
 }
 
 .percent-input {
-  padding-right: 34px;
+  flex-shrink: 0;
+  width: 74px;
   text-align: right;
 }
 
-.percent-suffix {
+.json-row {
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;
+  height: 104px;
+}
+
+.json-row .textarea {
+  flex: 1;
+  height: 100%;
+}
+
+.json-actions {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+  flex-shrink: 0;
+  width: clamp(130px, 10vw, 180px);
+}
+
+.json-actions .btn {
+  flex: 1;
+  white-space: normal;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.toast {
   position: absolute;
-  top: 50%;
-  right: 16px;
-  transform: translateY(-50%);
-  color: var(--md-sys-color-on-surface-variant);
+  right: 12px;
+  bottom: 12px;
+  left: 12px;
+  padding: 8px 14px;
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  box-shadow: var(--raised-sm);
+  color: var(--teal);
+  font-size: 0.84rem;
+  font-weight: 500;
 }
 
-.form-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 20px;
+.toast.error {
+  color: var(--danger);
 }
 
-.generate-button {
-  min-width: 160px;
+.toast-enter-active,
+.toast-leave-active {
+  transition: opacity 220ms ease, transform 220ms ease;
 }
 
-.output-card {
-  position: sticky;
-  top: 24px;
+.toast-enter-from,
+.toast-leave-to {
+  opacity: 0;
+  transform: translateY(6px);
 }
 
-.chart-scroll {
-  overflow: auto;
-  max-height: 520px;
-  padding: 16px;
-  border-radius: 24px;
-  border: 1px solid var(--md-sys-color-outline-variant);
-  background: rgba(255, 255, 255, 0.02);
-}
-
-.self-chart {
-  width: 100%;
-  min-height: 220px;
-}
-
-.code-area {
-  font-family: ui-monospace, 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
-  min-height: 120px;
-}
-
-.output-actions {
-  display: flex;
-  gap: 12px;
-  margin-top: 16px;
-  flex-wrap: wrap;
-}
-
-@media (max-width: 1200px) {
-  .list-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .output-card {
-    position: static;
-  }
-}
-
-@media (max-width: 960px) {
-  .form-card,
-  .output-card {
-    padding: 22px;
+/* 16:9 laptops (~768p): tighten tiles so every weapon stays on screen */
+@media (min-width: 1001px) and (max-height: 860px) {
+  .body-grid {
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
   }
 
   .form-grid {
-    grid-template-columns: 1fr;
-    max-height: 640px;
+    grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+    gap: 6px;
+  }
+
+  .input-tile {
+    min-height: 30px;
+    padding: 2px 6px 2px 10px;
+  }
+
+  .weapon-name {
+    font-size: 0.7rem;
+    line-height: 1.15;
+  }
+
+  .percent-input {
+    width: 58px;
+    min-height: 26px;
+    padding: 0 8px;
+  }
+
+  .json-row {
+    height: 84px;
+  }
+}
+
+@media (max-width: 1000px), (max-height: 600px) {
+  .form-well {
+    max-height: 520px;
+  }
+
+  .chart-well {
+    min-height: 420px;
   }
 }
 </style>

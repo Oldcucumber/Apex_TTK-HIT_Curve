@@ -2,18 +2,15 @@
 import * as echarts from 'echarts'
 import { markRaw } from 'vue'
 import weapon_stats from '@/data/flex.js'
+import { observeResize } from '@/utils'
+import chipGroup from './chip-group.vue'
+import { THEME, tooltipBase, axisCommon, sliderStyle } from '@/utils/theme'
 
-const CHART_THEME = {
-  colors: {
-    切枪: '#f4a261',
-    空仓换弹时间: '#ff7f7f',
-    腰射移速: '#75c7ff',
-    举镜移速: '#8de7c1'
-  },
-  surface: 'rgba(16, 22, 30, 0.94)',
-  text: '#e2e6ee',
-  muted: '#a6b0c2',
-  grid: 'rgba(166, 176, 194, 0.14)'
+const METRIC_COLORS = {
+  切枪: '#e8913a',
+  空仓换弹时间: '#e0504a',
+  腰射移速: '#3b7ddd',
+  举镜移速: '#1f9d8f'
 }
 
 const METRIC_OPTIONS = [
@@ -27,69 +24,47 @@ const DEFAULT_OPTIONS = {
   animationDuration: 320,
   backgroundColor: 'transparent',
   grid: {
-    top: 36,
-    right: 36,
-    bottom: 82,
-    left: 112,
+    top: 20,
+    right: 40,
+    bottom: 58,
+    left: 12,
     containLabel: true
   },
   tooltip: {
+    ...tooltipBase,
     trigger: 'axis',
-    axisPointer: { type: 'shadow' },
-    backgroundColor: CHART_THEME.surface,
-    borderColor: 'rgba(151, 203, 255, 0.28)',
-    borderWidth: 1,
-    textStyle: { color: CHART_THEME.text }
+    axisPointer: { type: 'shadow', shadowStyle: { color: 'rgba(90, 104, 128, 0.1)' } }
   },
-  xAxis: {
-    type: 'category',
-    nameLocation: 'middle',
-    nameGap: 40,
-    nameTextStyle: { fontSize: 14, color: CHART_THEME.muted },
-    axisLabel: { color: CHART_THEME.muted, rotate: 30 },
-    axisLine: { lineStyle: { color: 'rgba(166, 176, 194, 0.3)' } },
-    splitLine: { lineStyle: { color: CHART_THEME.grid } }
-  },
-  yAxis: {
-    type: 'value',
-    nameLocation: 'middle',
-    nameGap: 60,
-    nameTextStyle: { fontSize: 14, color: CHART_THEME.muted },
-    axisLabel: { color: CHART_THEME.muted },
-    axisLine: { lineStyle: { color: 'rgba(166, 176, 194, 0.3)' } },
-    splitLine: { lineStyle: { color: CHART_THEME.grid } }
-  },
-  dataZoom: [
-    { type: 'inside', xAxisIndex: 0 },
-    {
-      type: 'slider',
-      xAxisIndex: 0,
-      bottom: 14,
-      height: 24,
-      borderColor: 'rgba(151, 203, 255, 0.14)',
-      fillerColor: 'rgba(151, 203, 255, 0.18)',
-      backgroundColor: 'rgba(255, 255, 255, 0.03)',
-      handleStyle: { color: '#97cbff' },
-      textStyle: { color: CHART_THEME.muted }
-    }
-  ]
+  xAxis: { ...axisCommon, nameLocation: 'middle', nameGap: 34, nameTextStyle: { fontSize: 12, color: THEME.muted } },
+  yAxis: { ...axisCommon, nameLocation: 'middle', nameGap: 40, nameTextStyle: { fontSize: 12, color: THEME.muted } }
 }
+
+// 天梯模式下每行最少像素高度；放不下时用纵向滑块分页滚动
+const LADDER_ROW_HEIGHT = 17
 
 const SPEED_METRICS = new Set(['腰射移速', '举镜移速'])
 
 export default {
+  components: { chipGroup },
   props: {
     lang: { type: Object, required: false, default: () => ({}) }
   },
   data() {
     return {
       chartInstance: null,
+      stopResize: null,
+      visibleRows: 0,
       stats: weapon_stats,
       categories: [],
       filter: {},
       ALL: true,
       activeKey: '空仓换弹时间',
-      chartDirection: 'horizontal'
+      chartDirection: 'vertical'
+    }
+  },
+  watch: {
+    lang() {
+      this.changeLang()
     }
   },
   computed: {
@@ -106,12 +81,6 @@ export default {
       const active = METRIC_OPTIONS.find(option => option.key === this.activeKey)
       return active ? (this.isEnglish ? active.en : active.cn) : this.activeKey
     },
-    directionLabel() {
-      if (this.chartDirection === 'horizontal') {
-        return this.isEnglish ? 'Ladder mode' : '天梯模式'
-      }
-      return this.isEnglish ? 'Bar mode' : '柱状图模式'
-    },
     categoryI18n() {
       return {
         '冲锋枪': 'Submachine Guns',
@@ -121,6 +90,13 @@ export default {
         '神射手': 'Marksman Weapons',
         '狙击枪': 'Sniper Rifles'
       }
+    },
+    filterItems() {
+      return this.categories.map(category => ({
+        key: category,
+        label: this.isEnglish ? (this.categoryI18n[category] || category) : category,
+        active: Boolean(this.filter[category])
+      }))
     },
     selectionSummary() {
       const count = this.categories.filter(cat => this.filter[cat]).length
@@ -134,10 +110,10 @@ export default {
     this.initCategoriesAndFilter()
     this.initChart()
     this.updateChartSeries([])
-    window.addEventListener('resize', this.resizeChart)
+    this.stopResize = observeResize(this.$refs.chartContainer, this.resizeChart)
   },
   beforeUnmount() {
-    window.removeEventListener('resize', this.resizeChart)
+    if (this.stopResize) this.stopResize()
     if (this.chartInstance) {
       this.chartInstance.dispose()
       this.chartInstance = null
@@ -201,76 +177,91 @@ export default {
       const labels = weapons.map(item => item.weapon)
       const seriesData = weapons.map(item => ({
         value: item[sortKey],
-        itemStyle: { color: CHART_THEME.colors[sortKey] }
+        itemStyle: { color: METRIC_COLORS[sortKey] }
       }))
 
       return { labels, seriesData }
     },
+    ladderRows(total) {
+      const height = this.$refs.chartContainer?.clientHeight || 600
+      const fit = Math.max(8, Math.floor((height - 40) / LADDER_ROW_HEIGHT))
+      return Math.min(total, fit)
+    },
     buildOption(labels, seriesData) {
-      const validValues = seriesData
-        .map(item => item.value)
-        .filter(value => typeof value === 'number' && Number.isFinite(value))
-      const max = validValues.length ? Math.max(...validValues) : null
       const isHorizontal = this.chartDirection === 'horizontal'
+      const rows = this.ladderRows(labels.length)
+      const needsScroll = isHorizontal && rows < labels.length
+      this.visibleRows = rows
 
       return {
         ...DEFAULT_OPTIONS,
         grid: isHorizontal
-          ? { ...DEFAULT_OPTIONS.grid, left: 140, bottom: 32, top: 20 }
-          : { ...DEFAULT_OPTIONS.grid, left: 54, bottom: 108, top: 28 },
+          ? { ...DEFAULT_OPTIONS.grid, bottom: 16, right: needsScroll ? 64 : 48 }
+          : { ...DEFAULT_OPTIONS.grid, bottom: 12, top: 28 },
         tooltip: {
           ...DEFAULT_OPTIONS.tooltip,
           formatter: params => {
             if (!params || !params.length) return ''
             const item = params[0]
             return `
-              <div style="font-weight:700;margin-bottom:8px;">${item.name}</div>
-              <div style="padding-left:18px;">${this.activeMetricLabel}: <span style="font-weight:700;">${this.displayValue(item.value)}</span></div>
+              <div style="font-weight:700;margin-bottom:6px;">${item.name}</div>
+              <div>${this.activeMetricLabel}: <span style="font-weight:700;">${this.displayValue(item.value)}</span></div>
             `
           }
         },
         xAxis: isHorizontal
-          ? {
-              ...DEFAULT_OPTIONS.xAxis,
-              type: 'value',
-              name: this.activeMetricLabel,
-              axisLabel: {
-                color: CHART_THEME.muted
-              }
-            }
+          ? { ...DEFAULT_OPTIONS.xAxis, type: 'value', name: '' }
           : {
               ...DEFAULT_OPTIONS.xAxis,
               type: 'category',
-              name: this.isEnglish ? 'Weapon' : '武器',
+              name: '',
               data: labels,
-              axisLabel: {
-                color: CHART_THEME.muted,
-                rotate: 36
-              }
+              axisLabel: { ...axisCommon.axisLabel, interval: 0, rotate: 42, fontSize: 11 }
             },
         yAxis: isHorizontal
           ? {
               ...DEFAULT_OPTIONS.yAxis,
               type: 'category',
+              inverse: true,
+              name: '',
               data: labels,
-              name: this.isEnglish ? 'Weapon' : '武器'
+              axisLabel: { ...axisCommon.axisLabel, interval: 0, color: THEME.soft, fontSize: 11 },
+              splitLine: { show: false }
             }
           : {
               ...DEFAULT_OPTIONS.yAxis,
               type: 'value',
-              name: this.activeMetricLabel,
-              max: max ? max * 1.15 : undefined
+              name: '',
             },
+        dataZoom: needsScroll
+          ? [
+              { type: 'inside', yAxisIndex: 0, startValue: 0, endValue: rows - 1, zoomLock: true, moveOnMouseWheel: true },
+              {
+                ...sliderStyle,
+                type: 'slider',
+                yAxisIndex: 0,
+                right: 6,
+                width: 16,
+                startValue: 0,
+                endValue: rows - 1,
+                zoomLock: true,
+                brushSelect: false,
+                showDetail: false
+              }
+            ]
+          : [],
         series: [
           {
             name: this.activeMetricLabel,
             type: 'bar',
             data: seriesData,
-            barMaxWidth: 18,
+            barMaxWidth: isHorizontal ? 12 : 22,
+            itemStyle: { borderRadius: isHorizontal ? [0, 6, 6, 0] : [6, 6, 0, 0] },
             label: {
               show: true,
               position: isHorizontal ? 'right' : 'top',
-              color: CHART_THEME.text,
+              color: THEME.soft,
+              fontSize: 11,
               formatter: ({ value }) => this.displayValue(value)
             }
           }
@@ -300,12 +291,14 @@ export default {
     updateChartSeries(selectedCategories) {
       const { labels, seriesData } = this.formatChartData(selectedCategories)
       this.chartInstance.setOption(this.buildOption(labels, seriesData), {
-        replaceMerge: ['series', 'xAxis', 'yAxis', 'tooltip', 'grid']
+        replaceMerge: ['series', 'xAxis', 'yAxis', 'tooltip', 'grid', 'dataZoom']
       })
     },
     resizeChart() {
-      if (this.chartInstance) {
-        this.chartInstance.resize()
+      if (!this.chartInstance) return
+      this.chartInstance.resize()
+      if (this.chartDirection === 'horizontal') {
+        this.updateChartSeries(this.ALL ? [] : this.categories.filter(cat => this.filter[cat]))
       }
     },
     switchKey(key) {
@@ -324,111 +317,55 @@ export default {
 </script>
 
 <template>
-  <div class="page-shell">
-    <section class="page-header">
-      <div class="page-header-copy">
-        <p class="page-eyebrow">{{ isEnglish ? 'Handling profile' : '操控剖面' }}</p>
-        <h2 class="page-title">{{ isEnglish ? 'Flexibility Metrics' : '灵活性指标' }}</h2>
-        <p class="page-subtitle">
+  <div class="view">
+    <header class="view-head">
+      <div>
+        <h2 class="view-title">{{ isEnglish ? 'Flexibility Metrics' : '灵活性指标' }}</h2>
+        <p class="view-sub">
           {{ isEnglish
-            ? 'Rank weapon handling with four practical lenses: weapon swap, empty reload, hipfire movement and ADS movement.'
-            : '从切枪、空仓换弹、腰射移速和举镜移速四个角度，比较武器在实战中的灵活性。' }}
+            ? 'Weapon swap, empty reload, hipfire and ADS movement, ranked.'
+            : '切枪、空仓换弹、腰射移速、举镜移速，逐项排名。' }}
         </p>
       </div>
-      <span class="section-badge">{{ selectionSummary }}</span>
-    </section>
+      <div class="toolbar-group">
+        <span class="badge">{{ isEnglish ? 'Metric' : '指标' }} <strong>{{ activeMetricLabel }}</strong></span>
+        <span class="badge">{{ selectionSummary }}</span>
+      </div>
+    </header>
 
-    <section class="surface-card chart-card">
-      <div class="surface-header">
-        <div>
-          <h3 class="surface-title">{{ isEnglish ? 'Metric lens' : '指标切换' }}</h3>
-          <p class="surface-description">
-            {{ isEnglish
-              ? 'Swap between metrics and flip the layout depending on whether you want a compact ladder or a classic bar chart.'
-              : '可切换不同指标，并在天梯模式和柱状图模式之间来回切换。' }}
-          </p>
+    <section class="panel stage">
+      <div class="toolbar">
+        <div class="seg">
+          <button
+            v-for="option in metricOptions"
+            :key="option.key"
+            class="seg-btn"
+            :class="{ active: activeKey === option.key }"
+            @click="switchKey(option.key)"
+          >
+            {{ option.label }}
+          </button>
         </div>
-        <button class="tonal-button direction-button" @click="switchDirection">{{ directionLabel }}</button>
-      </div>
-
-      <div class="segmented-row metric-row">
-        <button
-          v-for="option in metricOptions"
-          :key="option.key"
-          class="segmented-button"
-          :class="{ active: activeKey === option.key }"
-          @click="switchKey(option.key)"
-        >
-          {{ option.label }}
-        </button>
-      </div>
-
-      <div ref="chartContainer" class="chart-host flex-stage"></div>
-    </section>
-
-    <section class="surface-card filter-card">
-      <div class="surface-header">
-        <div>
-          <h3 class="surface-title">{{ isEnglish ? 'Archetype filter' : '枪械大类筛选' }}</h3>
-          <p class="surface-description">
-            {{ isEnglish
-              ? 'Filter the ladder when you want to compare only similar handling families.'
-              : '当你只想比较相近的大类时，可以先过滤掉无关武器。' }}
-          </p>
+        <div class="seg">
+          <button class="seg-btn" :class="{ active: chartDirection === 'vertical' }" @click="chartDirection !== 'vertical' && switchDirection()">
+            {{ isEnglish ? 'Bars' : '柱状图' }}
+          </button>
+          <button class="seg-btn" :class="{ active: chartDirection === 'horizontal' }" @click="chartDirection !== 'horizontal' && switchDirection()">
+            {{ isEnglish ? 'Ladder' : '天梯' }}
+          </button>
         </div>
-        <span class="section-badge">{{ selectionSummary }}</span>
+        <span class="toolbar-spacer"></span>
+        <chip-group
+          :items="filterItems"
+          :all-label="isEnglish ? 'All' : '全部'"
+          :all-active="ALL"
+          @toggle="changeFilter"
+          @all="handleAll"
+        />
       </div>
-
-      <div class="filter-chip-row">
-        <button
-          v-for="category in categories"
-          :key="category"
-          class="filter-chip"
-          :class="{ active: filter[category] }"
-          @click="changeFilter(category)"
-        >
-          {{ isEnglish ? (categoryI18n[category] || category) : category }}
-        </button>
-        <button class="filter-chip" :class="{ active: ALL }" @click="handleAll">
-          {{ isEnglish ? 'All archetypes' : '全部大类' }}
-        </button>
+      <div class="well stage-canvas">
+        <div ref="chartContainer" class="chart-host"></div>
       </div>
     </section>
   </div>
 </template>
-
-<style scoped>
-.chart-card,
-.filter-card {
-  padding: 28px;
-}
-
-.metric-row {
-  margin-bottom: 20px;
-}
-
-.direction-button {
-  min-width: 150px;
-}
-
-.flex-stage {
-  min-height: 620px;
-}
-
-@media (max-width: 960px) {
-  .chart-card,
-  .filter-card {
-    padding: 22px;
-  }
-
-  .flex-stage {
-    min-height: 520px;
-  }
-}
-
-@media (max-width: 640px) {
-  .flex-stage {
-    min-height: 420px;
-  }
-}
-</style>
