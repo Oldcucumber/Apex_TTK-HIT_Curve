@@ -4,7 +4,9 @@ import vue from '@vitejs/plugin-vue'
 import vueDevTools from 'vite-plugin-vue-devtools'
 
 export default defineConfig(({ command }) => ({
-  base: '/Apex_TTK-HIT_Curve/', // 设置为你的GitHub仓库路径
+  // GitHub Pages serves the site under /Apex_TTK-HIT_Curve/; Cloudflare serves it at the
+  // domain root. BASE_PATH overrides both (WORKERS_CI / CF_PAGES are set by Cloudflare builds).
+  base: process.env.BASE_PATH || (process.env.WORKERS_CI || process.env.CF_PAGES ? '/' : '/Apex_TTK-HIT_Curve/'),
   plugins: [
     vue(),
     command === 'serve' && process.env.DEVTOOLS !== '0' && vueDevTools(),

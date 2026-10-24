@@ -1,0 +1,10 @@
+// Cloudflare Workers static-assets deployment (`npx wrangler deploy` after `yarn run build`).
+// "name" must match the Worker name shown in the Cloudflare dashboard.
+{
+  "name": "apex-ttk-hit-curve",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  }
+}
