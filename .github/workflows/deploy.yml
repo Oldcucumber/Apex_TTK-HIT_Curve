@@ -3,7 +3,10 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches:
-      - main  # 这里使用你的主要分支名
+      - main
+
+permissions:
+  contents: write
 
 jobs:
   deploy:
@@ -11,15 +14,20 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v6
 
       - name: Set up Node.js
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v6
         with:
-          node-version: '18'
+          node-version-file: '.nvmrc'
+
+      - name: Enable the project's Yarn version
+        run: |
+          corepack enable
+          yarn --version
 
       - name: Install dependencies
-        run: yarn install
+        run: yarn install --frozen-lockfile --non-interactive
 
       - name: Build the project
         run: yarn build
@@ -27,6 +35,6 @@ jobs:
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}  # 使用 GITHUB_TOKEN 进行身份验证,对啊怎么不对呢？
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist  # 输出的构建文件夹
           publish_branch: gh-pages  # 要推送到的分支

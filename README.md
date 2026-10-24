@@ -7,7 +7,20 @@
 
 ## 使用方法
 
-你可以拉取这个项目到本地然后使用 `yarn` 本地部署。
+项目统一使用 Yarn，版本由 `package.json` 的 `packageManager` 固定为 `yarn@1.22.22`，Node.js 版本见 `.nvmrc`。本地、GitHub Actions 和 Cloudflare 使用相同的版本声明；仅维护并提交 `yarn.lock`，不使用 npm 安装依赖。
+
+安装 `.nvmrc` 指定的 Node.js 后，运行：
+
+```bash
+corepack enable
+yarn install --frozen-lockfile
+yarn dev
+```
+
+生产构建使用 `yarn build`，产物位于 `dist/`。修改依赖时运行 `yarn add` / `yarn remove`，将 `package.json` 和 `yarn.lock` 一起提交；CI 使用冻结锁文件安装，避免部署时修改依赖版本。
+
+Cloudflare Workers 的构建命令为 `yarn build`，部署命令为 `npx wrangler deploy`。仓库中的 `wrangler.jsonc` 已配置静态资源目录和单页应用回退，Worker 名称需与 Cloudflare 项目一致。若之前手动设置过 `YARN_VERSION` 或 `NODE_VERSION`，请移除这些覆盖值，让构建读取仓库中的版本声明。
+
 你也可以直接使用 GitHub Pages 提供的[在线版本](https://oldcucumber.github.io/Apex_TTK-HIT_Curve/)。
 如果你的网络环境不允许您方便地访问 GitHub Pages，你可以使用[apex.zju.wiki](https://apex.zju.wiki/)来访问。
 

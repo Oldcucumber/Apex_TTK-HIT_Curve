@@ -8,6 +8,8 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
+# Yarn is the project's package manager; keep yarn.lock as the only lockfile.
+package-lock.json
 .DS_Store
 dist
 dist-ssr
