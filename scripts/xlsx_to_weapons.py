@@ -7,7 +7,8 @@ English names come from scripts/names_en.json; untranslated names are reported.
 
 Stdlib only (the sheet's styles break openpyxl). Numeric cells keep their value;
 text cells such as ranges ("0.62~0.72"), "/" or "待测" are reduced to a
-representative number (or null) and the original text is kept in `r`.
+representative number (or null) and the original text is kept in `raw`.
+Verified source corrections live in data_corrections.json and require matching inputs.
 """
 import json
 import re
@@ -135,6 +136,23 @@ def translate(table, text, missing):
     return text
 
 
+def apply_corrections(weapons, corrections):
+    """Apply reviewed source corrections; stop if a later sheet changes their inputs."""
+    by_key = {w['key']: w for w in weapons}
+    for correction in corrections:
+        key = correction['key']
+        if key not in by_key:
+            raise ValueError(f'data correction target missing: {key}')
+        w = by_key[key]
+        for path, expected in correction['expected'].items():
+            actual = w
+            for part in path.split('.'):
+                actual = actual.get(part) if isinstance(actual, dict) else None
+            if path in w.get('raw', {}) or actual != expected:
+                raise ValueError(f'data correction conflict: {key}.{path}: expected {expected!r}, got {actual!r}')
+        w[correction['field']] = correction['value']
+
+
 def main():
     src = Path(sys.argv[1]) if len(sys.argv) > 1 else Path('老葛你又在打电动-APEX枪械数据.xlsx')
     out = Path(sys.argv[2]) if len(sys.argv) > 2 else Path('src/data/weapons.json')
@@ -187,6 +205,9 @@ def main():
             key += '-2'
         w = {'key': key, **w}
         weapons.append(w)
+
+    corrections = json.loads((Path(__file__).parent / 'data_corrections.json').read_text(encoding='utf-8'))
+    apply_corrections(weapons, corrections)
 
     # One weapon per line keeps diffs readable when the sheet changes
     body = ',\n'.join('    ' + json.dumps(w, ensure_ascii=False, separators=(',', ':')) for w in weapons)

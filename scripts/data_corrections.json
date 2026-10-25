@@ -1,0 +1,18 @@
+[
+  {
+    "key": "vk-47-flatline-ballistic",
+    "field": "dps",
+    "expected": {"dps": 178.5, "dmg.chest": 20, "rpm": 600},
+    "value": 200,
+    "source": "数据表2.0!E16,N16,S16",
+    "reason": "胸部伤害20 × 射速600 ÷ 60 = 200；原表DPS为178.5。"
+  },
+  {
+    "key": "vk-47-flatline-standard",
+    "field": "dps",
+    "expected": {"dps": 178.5, "dmg.chest": 20, "rpm": 600},
+    "value": 200,
+    "source": "数据表2.0!E17,N17,S17",
+    "reason": "胸部伤害20 × 射速600 ÷ 60 = 200；原表DPS为178.5。"
+  }
+]
