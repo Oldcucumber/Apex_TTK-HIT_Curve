@@ -9,21 +9,24 @@ const curve = key => {
   assert.ok(weapon, key)
   return { weapon, points: curvePoints(weapon) }
 }
-const eva = curve('eva-8-auto-double-tap-purple-bolt')
-const flatline = curve('vk-47-flatline-standard')
+const wingman = curve('dual-wingman-2-round-burst')
+const hemlok = curve('hemlok-burst-ar-3-round-burst')
+const flatline = curve('vk-47-flatline')
 
-test('EVA-8 follows the documented pair timing through the full magazine', () => {
-  // Shot times: 0, .14, .70, .84, 1.40, 1.54, 2.10, 2.24 seconds.
-  assert.deepEqual(eva.points.map(p => p[1]), [0.84, 1.4, 1.54, 2.1, 2.24])
-  assert.equal(ttkAt(eva, 80), 1.4)
-  assert.equal(ttkAt(eva, 50), 2.24)
+test('burst weapons follow the measured burst timing through the full magazine', () => {
+  // Dual Wingman: pairs 0.179s apart inside, 0.354s between pairs; 5 hits, 16 rounds.
+  assert.deepEqual(wingman.points.map(p => p[1]).slice(0, 4), [1.06, 1.239, 1.593, 1.772])
+  assert.equal(wingman.points.length, 12)
+  // Hemlok: 3-round bursts, 0.065s inside, 0.251s between; 10 hits = 3 bursts + 1.
+  assert.deepEqual(hemlok.points.map(p => p[1]).slice(0, 4), [1.14, 1.205, 1.27, 1.521])
+  assert.equal(ttkAt(wingman, 50), 2.305)
 })
 
 test('queries use exact shot boundaries, including the last round', () => {
-  assert.equal(ttkAt(eva, (4 / 6) * 100), 1.54)
+  assert.equal(ttkAt(wingman, (5 / 7) * 100), 1.593)
   assert.equal(ttkAt(flatline, (10 / 29) * 100), 2.8)
-  assert.equal(ttkAt(eva, 80 + 1e-8), 1.4)
-  assert.equal(ttkAt(eva, 80 - 1e-8), 1.54)
+  assert.equal(ttkAt(wingman, (5 / 6) * 100 + 1e-8), 1.239)
+  assert.equal(ttkAt(wingman, (5 / 6) * 100 - 1e-8), 1.593)
   assert.equal(ttkAt(flatline, (10 / 29) * 100 - 1e-8), null)
 })
 
@@ -39,7 +42,7 @@ test('regular weapons keep their existing timing and magazine limits', () => {
 
 test('invalid percentages never return a plausible TTK', () => {
   for (const pct of [0, -1, 100.01, 101, NaN, Infinity, -Infinity, null, undefined, '80']) {
-    assert.equal(ttkAt(eva, pct), null, String(pct))
+    assert.equal(ttkAt(wingman, pct), null, String(pct))
   }
 })
 
@@ -47,7 +50,7 @@ test('every eligible shot boundary resolves to its own sample', () => {
   const eligible = weapons.filter(w => w.ammo !== '技能' && w.ttk.purple != null &&
     w.bullets.purple != null && !w.raw?.['bullets.purple'] && !w.raw?.['ttk.purple'] &&
     typeof w.mag.purple === 'number')
-  assert.equal(eligible.length, 51)
+  assert.equal(eligible.length, 52)
   for (const weapon of eligible) {
     const c = { weapon, points: curvePoints(weapon) }
     for (const [i, [, time]] of c.points.entries()) {

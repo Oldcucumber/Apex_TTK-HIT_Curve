@@ -30,7 +30,7 @@ Cloudflare Workers 的构建命令为 `yarn build`，部署命令为 `npx wrangl
 
 | 页面 | 内容 |
 | :--- | :--- |
-| 总览 | 全部武器的数据表（战斗 / 容错 / 操控三组列），可按类型筛选、搜索、排序；点击一行查看详情，可按护甲等级切换 TTK |
+| 总览 | 全部武器的数据表（战斗 / 容错 / 操控 / 操控时间四组列），可按类型筛选、搜索、排序，可只看本赛季变动（增强 / 削弱 / 新增 / 重测，悬停查看旧值）；点击一行查看详情与本赛季改动对比，可按护甲等级切换 TTK |
 | 探索 | 任意两项指标的散点图（支持对数轴），或任意指标的排行条形图 |
 | 对比 | 选择 2–4 把武器，雷达图 + 逐项数据对比 |
 | 命中率 | 命中率-TTK 曲线，以及命中率自测（可导入/导出 JSON） |
@@ -39,9 +39,15 @@ Cloudflare Workers 的构建命令为 `yarn build`，部署命令为 `npx wrangl
 
 ## 数据更新
 
-唯一的数据源是 `src/data/weapons.json`（社区 xlsx 的 `数据表2.0` 工作表，由脚本生成）：59 条武器状态的伤害、TTK、TTM、换弹、移速、操控等，含中英文名称和稳定的 `key`。
+唯一的数据源是 `src/data/weapons.json`（社区 xlsx 的 `31赛季初` 工作表，由脚本生成）：58 条武器状态的伤害、TTK、TTM、换弹、移速、操控、操控时间等，含中英文名称和稳定的 `key`。
 
-命中率曲线不再单独维护，而是在 `src/data/curves.js` 中由同一份数据推算（紫甲）：击杀需要 N 发命中，k 次未命中时命中率 = N/(N+k)，TTK = 满命中 TTK + k × 射击间隔，直到紫弹匣打空。技能、伤害随距离变化的武器（L-STAR、充能步枪）和榴弹没有曲线。
+- 工作表没有保存公式结果，脚本会自行计算 TTK、DPS、弹匣总伤、容错率、TTM 等公式列。
+- 本赛季变动取自表格底色：武器名称格红底 = 增强、绿底 = 削弱、蓝底 = 新增，黄底数值 = 重测；旧值从 `30赛季末` 工作表读取，写入 `change.prev`。
+- 表格原备注较长且混有旧值，网站显示 `scripts/notes.json` 中整理过的中英文短备注，原备注保留在 `history`。
+- 表格中的空白格如需沿用上赛季数据，在脚本的 `CARRY_OVER` 中登记；经核对的数据修正在 `scripts/data_corrections.json` 中登记。
+- 换赛季时修改脚本顶部的 `SHEET` / `PREV_SHEET`，并在 `RENAMED` 中登记改名的武器状态。
+
+命中率曲线不再单独维护，而是在 `src/data/curves.js` 中由同一份数据推算（紫甲）：击杀需要 N 发命中，k 次未命中时命中率 = N/(N+k)，TTK = 满命中 TTK + k × 射击间隔，直到紫弹匣打空。连发武器（双持小帮手、赫姆洛克、猎兽）按表格实测的组内 / 组间间隔计算。技能和伤害随距离变化的充能步枪没有曲线。
 
 更新 `weapons.json`：
 
@@ -49,7 +55,7 @@ Cloudflare Workers 的构建命令为 `yarn build`，部署命令为 `npx wrangl
 python3 scripts/xlsx_to_weapons.py 老葛你又在打电动-APEX枪械数据.xlsx
 ```
 
-脚本只依赖 Python 标准库；英文名称在 `scripts/names_en.json` 中维护，缺少翻译时脚本会列出。界面文字在 `src/i18n/locales/` 下。
+脚本只依赖 Python 标准库；英文名称在 `scripts/names_en.json` 中维护，缺少翻译时脚本会列出。测试：`python3 -m unittest tests/test_data.py` 与 `node --test tests/curves.test.js`。界面文字在 `src/i18n/locales/` 下。
 
 -----
 

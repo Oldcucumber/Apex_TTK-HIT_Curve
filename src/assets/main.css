@@ -34,6 +34,12 @@
   --a-blue: #3b82f6;
   --a-purple: #a855f7;
   --a-red: #ef4444;
+
+  /* season change (the data sheet's convention: red = buff, green = nerf) */
+  --chg-buff: #dc2626;
+  --chg-nerf: #16a34a;
+  --chg-new: #2563eb;
+  --chg-fix: #a16207;
 }
 
 :root[data-theme='dark'] {
@@ -66,6 +72,11 @@
   --a-blue: #60a5fa;
   --a-purple: #c084fc;
   --a-red: #f87171;
+
+  --chg-buff: #f87171;
+  --chg-nerf: #4ade80;
+  --chg-new: #60a5fa;
+  --chg-fix: #facc15;
 }
 
 *,

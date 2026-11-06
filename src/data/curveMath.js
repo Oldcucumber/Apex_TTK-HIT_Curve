@@ -13,20 +13,29 @@ const steadyInterval = w => {
   return n > 1 ? w.ttk.purple / (n - 1) : null
 }
 
-// 数据表2.0, EVA-8 Double Tap: 0.14s within a pair, 0.56s to the next pair.
-const doubleTapTime = shots => Math.floor((shots - 1) / 2) * (0.14 + 0.56) + ((shots - 1) % 2) * 0.14
+// Burst timings measured in the sheet's notes (240 fps captures): shots per burst,
+// interval within a burst, and the gap from a burst's last shot to the next burst.
+export const BURSTS = {
+  'dual-wingman-2-round-burst': { size: 2, within: 0.179, between: 0.354 },
+  'hemlok-burst-ar-3-round-burst': { size: 3, within: 0.065, between: 0.251 },
+  'prowler-burst-pdw-5-round-burst': { size: 5, within: 0.049, between: 0.228 }
+}
+
+/** Time from the first shot to the given shot (1-based) of a burst weapon. */
+const burstTime = ({ size, within, between }, shots) =>
+  Math.floor((shots - 1) / size) * ((size - 1) * within + between) + ((shots - 1) % size) * within
 
 export const curvePoints = w => {
   const n = w.bullets.purple
   const ttk = w.ttk.purple
   const iv = steadyInterval(w)
-  const doubleTap = w.key === 'eva-8-auto-double-tap-purple-bolt'
+  const burst = BURSTS[w.key]
   const points = [[100, round(ttk)]]
-  if (iv || doubleTap) {
+  if (iv || burst) {
     for (let k = 1; n + k <= w.mag.purple; k++) {
       const hit = (n / (n + k)) * 100
       if (hit < MIN_HIT) break
-      const extra = doubleTap ? doubleTapTime(n + k) - doubleTapTime(n) : k * iv
+      const extra = burst ? burstTime(burst, n + k) - burstTime(burst, n) : k * iv
       points.push([round(hit), round(ttk + extra)])
     }
   }

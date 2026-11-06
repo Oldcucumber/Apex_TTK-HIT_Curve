@@ -1,9 +1,10 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { ARMORS, classVar } from '../data/meta.js'
-import { METRIC, display, extent, isAbility, isApprox, value, weaponById, weapons } from '../data/metrics.js'
+import { METRIC, changeOf, changedCell, display, extent, isAbility, isApprox, meta, prevDisplay, value, weaponById, weapons } from '../data/metrics.js'
 import { store, toggleCompare, MAX_COMPARE } from '../store.js'
 import { ammoName, clsName, fullName, metricName, nameOf, t } from '../i18n/index.js'
+import ChangeBadge from '../components/ChangeBadge.vue'
 import ClassFilter from '../components/ClassFilter.vue'
 import Seg from '../components/Seg.vue'
 import WeaponDrawer from '../components/WeaponDrawer.vue'
@@ -11,11 +12,14 @@ import WeaponDrawer from '../components/WeaponDrawer.vue'
 const PRESETS = {
   combat: ['chest', 'rpm', 'bullets', 'ttk', 'dps', 'mag'],
   tolerance: ['ttk', 'mag', 'magDmg', 'tolerance', 'ttm'],
-  handling: ['reloadEmpty', 'reloadTac', 'run', 'hip', 'ads', 'recoil', 'hipAcc', 'handling']
+  handling: ['reloadEmpty', 'reloadTac', 'run', 'hip', 'ads', 'recoil', 'hipAcc', 'handling'],
+  timing: ['draw', 'holster', 'sprint', 'adsTime', 'reloadEmpty', 'reloadTac']
 }
 
 const classes = ref([])
 const query = ref('')
+const onlyChanged = ref(false)
+const changedCount = weapons.filter(changeOf).length
 const preset = ref('combat')
 const sort = ref({ key: 'ttk', dir: 'asc' })
 
@@ -34,6 +38,7 @@ const rows = computed(() => {
   const q = query.value.trim().toLowerCase()
   const list = weapons.filter(w => {
     if (classes.value.length && !classes.value.includes(w.cls)) return false
+    if (onlyChanged.value && !changeOf(w)) return false
     if (!q) return true
     return haystack.get(w.id).includes(q) || `${clsName(w.cls)} ${ammoName(w.ammo)}`.toLowerCase().includes(q)
   })
@@ -119,6 +124,9 @@ const armorColor = computed(() => `var(${ARMORS.find(a => a.key === store.armor)
   <section class="view">
     <div class="toolbar">
       <ClassFilter v-model="classes" />
+      <button class="chip chg-chip" :aria-pressed="onlyChanged" @click="onlyChanged = !onlyChanged">
+        <i class="dot"></i>{{ t('chg.filter', { s: meta.season }) }} <small>{{ changedCount }}</small>
+      </button>
       <div class="grow"></div>
       <Seg v-model="preset" :options="presetOptions" />
       <input v-model="query" class="field search" type="search" :placeholder="t('ov.search')">
@@ -164,7 +172,7 @@ const armorColor = computed(() => `var(${ARMORS.find(a => a.key === store.armor)
             <span class="m-idx muted num">{{ i + 1 }}</span>
             <i class="dot"></i>
             <span class="m-name">
-              <b>{{ nameOf(w).base }}</b>
+              <b>{{ nameOf(w).base }} <ChangeBadge :type="changeOf(w)" class="m-badge" /></b>
               <small>{{ [nameOf(w).state, clsName(w.cls)].filter(Boolean).join(' · ') }}</small>
             </span>
             <span class="m-val num">
@@ -226,13 +234,18 @@ const armorColor = computed(() => `var(${ARMORS.find(a => a.key === store.armor)
                 <td class="c-name">
                   <i class="dot"></i>
                   <b>{{ nameOf(w).base }}</b>
-                  <span v-if="nameOf(w).state" class="muted">{{ nameOf(w).state }}</span>
+                  <span v-if="nameOf(w).state" class="muted state">{{ nameOf(w).state }}</span>
+                  <ChangeBadge :type="changeOf(w)" />
                 </td>
                 <td class="c-cls">{{ clsName(w.cls) }}</td>
                 <td class="c-ammo"><span class="tag">{{ ammoName(w.ammo) }}</span></td>
                 <td v-for="m in columns" :key="m.key" class="c-num" :class="{ sorted: m.key === sort.key }">
                   <span v-if="m.key === sort.key" class="bar" :style="{ '--w': `${barWidth(w, m)}%` }"></span>
-                  <span class="val" :class="{ nil: value(w, m, store.armor) == null }">{{ display(w, m, store.armor) }}</span>
+                  <span
+                    class="val"
+                    :class="{ nil: value(w, m, store.armor) == null, chg: changedCell(w, m, store.armor) }"
+                    :title="changedCell(w, m, store.armor) ? t('chg.prev', { s: meta.season - 1, v: prevDisplay(w, m, store.armor) }) : null"
+                  >{{ display(w, m, store.armor) }}</span>
                 </td>
               </tr>
             </tbody>
@@ -247,6 +260,20 @@ const armorColor = computed(() => `var(${ARMORS.find(a => a.key === store.armor)
 </template>
 
 <style scoped>
+.chg-chip {
+  --dot: var(--chg-buff);
+}
+
+.chg-chip .dot {
+  background: linear-gradient(90deg, var(--chg-buff) 50%, var(--chg-nerf) 50%);
+}
+
+.val.chg {
+  text-decoration: underline dotted color-mix(in srgb, var(--text-3) 70%, transparent);
+  text-underline-offset: 3px;
+  cursor: help;
+}
+
 .search {
   width: 190px;
 }
@@ -471,9 +498,13 @@ td.c-name b {
   font-weight: 600;
 }
 
-td.c-name span {
+td.c-name .state {
   margin-left: 7px;
   font-size: 12px;
+}
+
+td.c-name .chg-badge {
+  margin-left: 7px;
 }
 
 .c-cls {

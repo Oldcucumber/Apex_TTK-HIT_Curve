@@ -1,9 +1,10 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted } from 'vue'
 import { ARMORS, classVar } from '../data/meta.js'
-import { METRIC, cell, display, value } from '../data/metrics.js'
+import { METRIC, cell, changeOf, changes, display, formatValue, meta, metricOfPath, value } from '../data/metrics.js'
+import ChangeBadge from './ChangeBadge.vue'
 import { store, toggleCompare, MAX_COMPARE } from '../store.js'
-import { ammoName, armorName, clsName, metricName, nameOf, t, tr } from '../i18n/index.js'
+import { ammoName, armorName, clsName, isEn, localizeRaw, metricName, nameOf, t, tr } from '../i18n/index.js'
 
 const props = defineProps({
   weapon: { type: Object, required: true },
@@ -58,6 +59,25 @@ const meters = computed(() => ['recoil', 'hipAcc', 'handling'].map(k => ({
 
 const kv = keys => keys.map(k => ({ k, label: metricName(METRIC[k]), v: display(w.value, METRIC[k], store.armor, { unit: true }) }))
 
+// Fields that changed this season, as "label: before -> after"
+const fmtField = (path, v) => {
+  if (v == null) return '—'
+  if (typeof v === 'string') return localizeRaw(v)
+  const hit = metricOfPath(path)
+  if (hit) return formatValue(v, hit.m, { unit: true })
+  return /Mul$/.test(path) ? mul(v) : String(v)
+}
+const fieldLabel = path => {
+  const hit = metricOfPath(path)
+  if (!hit) return t(`field.${path}`)
+  const name = metricName(hit.m)
+  return hit.armor ? `${name} · ${armorName(hit.armor)}` : name
+}
+const changeRows = computed(() => changes(w.value)
+  .map(c => ({ path: c.path, label: fieldLabel(c.path), from: fmtField(c.path, c.from), to: fmtField(c.path, c.to) }))
+  .filter(c => c.from !== c.to)) // e.g. 2.934 -> 2.93 reads the same at display precision
+const change = computed(() => changeOf(w.value))
+
 const onKey = e => { if (e.key === 'Escape') emit('close') }
 onMounted(() => window.addEventListener('keydown', onKey))
 onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
@@ -82,6 +102,21 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
     </header>
 
     <div class="scroll">
+      <section v-if="change" class="chg" :class="change">
+        <h3 class="label">
+          {{ t('dr.change') }} <ChangeBadge :type="change" />
+        </h3>
+        <ul v-if="changeRows.length" class="chg-list">
+          <li v-for="c in changeRows" :key="c.path">
+            <span>{{ c.label }}</span>
+            <s class="num muted">{{ c.from }}</s>
+            <i aria-hidden="true">→</i>
+            <b class="num">{{ c.to }}</b>
+          </li>
+        </ul>
+        <p v-if="w.note" class="note">{{ tr(w.note) }}</p>
+      </section>
+
       <div class="big">
         <div v-for="b in big" :key="b.label">
           <span class="label">{{ b.label }}</span>
@@ -134,10 +169,22 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
         <template v-for="r in kv(['reloadEmpty', 'reloadTac', 'run', 'hip', 'ads'])" :key="r.k"><span>{{ r.label }}</span><b class="num">{{ r.v }}</b></template>
       </div>
 
-      <template v-if="w.note">
+      <template v-if="w.time && Object.values(w.time).some(v => v != null)">
+        <h3 class="label">{{ t('dr.timing') }}</h3>
+        <div class="kv">
+          <template v-for="r in kv(['draw', 'holster', 'sprint', 'adsTime'])" :key="r.k"><span>{{ r.label }}</span><b class="num">{{ r.v }}</b></template>
+        </div>
+      </template>
+
+      <template v-if="w.note && !change">
         <h3 class="label">{{ t('dr.note') }}</h3>
         <p class="note">{{ tr(w.note) }}</p>
       </template>
+
+      <details v-if="w.history && !isEn()" class="history">
+        <summary class="label">{{ t('dr.history') }}</summary>
+        <p class="note">{{ w.history }}</p>
+      </details>
     </div>
 
     <footer>
@@ -328,6 +375,76 @@ small {
 .meters b {
   text-align: right;
   font-weight: 600;
+}
+
+.chg {
+  margin-top: 12px;
+  padding: 2px 12px 12px;
+  border: 1px solid color-mix(in srgb, var(--c, var(--chg-fix)) 30%, var(--line));
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--c, var(--chg-fix)) 5%, transparent);
+}
+
+.chg.buff { --c: var(--chg-buff); }
+.chg.nerf { --c: var(--chg-nerf); }
+.chg.new { --c: var(--chg-new); }
+
+.chg h3.label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 8px;
+}
+
+.chg-list {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+  font-size: 12.5px;
+}
+
+.chg-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 14px auto;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.chg-list span {
+  color: var(--text-2);
+}
+
+.chg-list s {
+  text-align: right;
+}
+
+.chg-list i {
+  color: var(--text-3);
+  font-style: normal;
+  text-align: center;
+}
+
+.chg-list b {
+  font-weight: 650;
+  text-align: right;
+}
+
+.chg .note {
+  background: var(--panel);
+}
+
+.history {
+  margin-top: 16px;
+}
+
+.history summary {
+  cursor: pointer;
+}
+
+.history .note {
+  margin-top: 8px;
 }
 
 .note {

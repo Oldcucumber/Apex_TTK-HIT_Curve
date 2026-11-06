@@ -1,4 +1,4 @@
-// Weapon data (sheet "数据表2.0") and the metric catalogue shared by every view.
+// Weapon data (season sheet, see scripts/xlsx_to_weapons.py) and the metric catalogue shared by every view.
 // `path` addresses a field of a weapon record; `$` is replaced by the selected armor tier.
 // dir: which direction is better ('low' | 'high'). Labels live in the locale files (metric.<key>).
 import data from './weapons.json'
@@ -25,11 +25,15 @@ export const METRICS = [
   { key: 'ads', group: 'handling', unit: '%', dec: 0, dir: 'high', path: 'speed.ads', pct: true },
   { key: 'recoil', group: 'handling', unit: '', dec: 0, dir: 'high', path: 'recoil' },
   { key: 'hipAcc', group: 'handling', unit: '', dec: 0, dir: 'high', path: 'hipAcc' },
-  { key: 'handling', group: 'handling', unit: '', dec: 0, dir: 'high', path: 'handling' }
+  { key: 'handling', group: 'handling', unit: '', dec: 0, dir: 'high', path: 'handling' },
+  { key: 'draw', group: 'timing', unit: 's', dec: 2, dir: 'low', path: 'time.draw' },
+  { key: 'holster', group: 'timing', unit: 's', dec: 2, dir: 'low', path: 'time.holster' },
+  { key: 'sprint', group: 'timing', unit: 's', dec: 2, dir: 'low', path: 'time.sprint' },
+  { key: 'adsTime', group: 'timing', unit: 's', dec: 2, dir: 'low', path: 'time.ads' }
 ]
 
 export const METRIC = Object.fromEntries(METRICS.map(m => [m.key, m]))
-export const GROUPS = ['combat', 'tolerance', 'handling']
+export const GROUPS = ['combat', 'tolerance', 'handling', 'timing']
 
 const resolve = (m, armor) => (m.armor ? m.path.replace('$', armor) : m.path)
 const pick = (obj, path) => path.split('.').reduce((o, k) => (o == null ? o : o[k]), obj)
@@ -111,3 +115,41 @@ export const median = (m, armor = 'purple', list = weapons) => {
 
 /** Abilities (ultimates) are in the sheet for reference but are not weapon picks. */
 export const isAbility = w => w.ammo === '技能'
+
+/** Season change type: 'buff' | 'nerf' | 'new' | 'fix' (re-measured), or null. */
+export const changeOf = w => w.change?.type ?? null
+
+const ARMOR_KEYS = ['white', 'blue', 'purple', 'red']
+/** Metric (and armor tier) a sheet field path belongs to, e.g. 'ttk.blue' -> { m: ttk, armor: 'blue' }. */
+export const metricOfPath = path => {
+  const [group, key] = path.split('.')
+  if (ARMOR_KEYS.includes(key)) {
+    const m = METRICS.find(x => x.armor && x.path === `${group}.$`)
+    if (m) return { m, armor: key }
+  }
+  const m = METRICS.find(x => x.path === path)
+  return m ? { m, armor: null } : null
+}
+
+/** Fields changed this season: [{ path, from, to }] with sheet values (numbers or original text). */
+export const changes = w =>
+  Object.entries(w.change?.prev ?? {}).map(([path, from]) => ({
+    path,
+    from,
+    to: rawText(w, path) ?? pick(w, path)
+  }))
+
+/** True when a metric's cell changed this season (for the selected armor). */
+export const changedCell = (w, m, armor = 'purple') => {
+  const prev = w.change?.prev
+  return prev ? resolve(m, armor) in prev : false
+}
+
+/** Previous-season value of a metric's cell, formatted (or null when unchanged). */
+export const prevDisplay = (w, m, armor = 'purple') => {
+  const prev = w.change?.prev
+  const path = resolve(m, armor)
+  if (!prev || !(path in prev)) return null
+  const v = prev[path]
+  return typeof v === 'number' ? formatValue(v, m, { unit: true }) : v == null ? '—' : localizeRaw(String(v))
+}
