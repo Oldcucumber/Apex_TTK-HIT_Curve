@@ -3,14 +3,20 @@ import { CLASSES } from '../data/meta.js'
 import { weapons } from '../data/metrics.js'
 import { clsName, t } from '../i18n/index.js'
 
-// Multi-select class filter. An empty selection means "all classes".
+// Multi-select class filter. An empty selection means "all classes"; in that state every
+// class chip shows as selected, so clicking one removes just that class.
 const model = defineModel({ type: Array, required: true })
+const ALL = CLASSES.map(c => c.key)
+const isOn = key => model.value.length === 0 || model.value.includes(key)
 
 const counts = {}
 for (const w of weapons) counts[w.cls] = (counts[w.cls] || 0) + 1
 
 const toggle = key => {
-  model.value = model.value.includes(key) ? model.value.filter(k => k !== key) : [...model.value, key]
+  const current = model.value.length ? model.value : ALL
+  const next = current.includes(key) ? current.filter(k => k !== key) : [...current, key]
+  if (!next.length) return // keep at least one class
+  model.value = next.length === ALL.length ? [] : ALL.filter(k => next.includes(k))
 }
 </script>
 
@@ -22,7 +28,7 @@ const toggle = key => {
       :key="c.key"
       class="chip"
       :style="{ '--dot': `var(${c.color})` }"
-      :aria-pressed="model.includes(c.key)"
+      :aria-pressed="isOn(c.key)"
       @click="toggle(c.key)"
     >
       <i class="dot"></i>{{ clsName(c.key) }} <small>{{ counts[c.key] || 0 }}</small>
