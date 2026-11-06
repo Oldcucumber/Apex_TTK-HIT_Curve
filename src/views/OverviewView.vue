@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { ARMORS, classVar } from '../data/meta.js'
 import { METRIC, changeOf, changedCell, display, extent, isAbility, isApprox, meta, prevDisplay, value, weaponById, weapons } from '../data/metrics.js'
 import { store, toggleCompare, MAX_COMPARE } from '../store.js'
@@ -59,12 +59,17 @@ const rows = computed(() => {
   })
 })
 
-const ranges = computed(() => Object.fromEntries(columns.value.map(m => [m.key, extent(m, store.armor)])))
+// Bar scales for the visible columns and for the sort metric (phones show only the sort metric)
+const ranges = computed(() => {
+  const list = [...columns.value]
+  if (METRIC[sort.value.key] && !list.includes(METRIC[sort.value.key])) list.push(METRIC[sort.value.key])
+  return Object.fromEntries(list.map(m => [m.key, extent(m, store.armor)]))
+})
 
 const barWidth = (w, m) => {
   const v = value(w, m, store.armor)
   if (v == null) return 0
-  const [lo, hi] = ranges.value[m.key]
+  const [lo, hi] = ranges.value[m.key] ?? extent(m, store.armor)
   return hi === lo ? 100 : Math.max(4, ((v - lo) / (hi - lo)) * 100)
 }
 
@@ -75,6 +80,13 @@ const sortBy = key => {
     ? { key, dir: sort.value.dir === 'asc' ? 'desc' : 'asc' }
     : { key, dir: best }
 }
+
+// Switching column group: keep the sort if its column is still shown, otherwise sort by the
+// group's first column (the phone sort menu only lists the group's columns)
+watch(preset, () => {
+  const key = sort.value.key
+  if (METRIC[key] && !PRESETS[preset.value].includes(key)) sortBy(PRESETS[preset.value][0])
+})
 
 const ariaSort = key => (sort.value.key === key ? (sort.value.dir === 'asc' ? 'ascending' : 'descending') : 'none')
 

@@ -1,18 +1,35 @@
 <script setup>
 import { defineAsyncComponent } from 'vue'
 import { store } from './store.js'
+import { reloadOnce } from './reload.js'
 import TopBar from './components/TopBar.vue'
 import FooterBar from './components/FooterBar.vue'
 import OverviewView from './views/OverviewView.vue'
 
-// Chart views pull in ECharts; load them on demand so the first screen stays light.
-const ExploreView = defineAsyncComponent(() => import('./views/ExploreView.vue'))
-const CompareView = defineAsyncComponent(() => import('./views/CompareView.vue'))
-const HitRateView = defineAsyncComponent(() => import('./views/HitRateView.vue'))
+// Chart views pull in ECharts; they load after the first screen, then stay in memory.
+const loaders = {
+  explore: () => import('./views/ExploreView.vue'),
+  compare: () => import('./views/CompareView.vue'),
+  hitrate: () => import('./views/HitRateView.vue')
+}
+// A failed chunk request is retried once (flaky network); if it still fails the build has
+// probably been replaced, so reload to get the new one.
+const lazy = loader => defineAsyncComponent({
+  loader,
+  onError: (err, retry, fail, attempts) => {
+    if (attempts <= 1) setTimeout(retry, 300)
+    else if (!reloadOnce()) fail()
+  }
+})
+const ExploreView = lazy(loaders.explore)
+const CompareView = lazy(loaders.compare)
+const HitRateView = lazy(loaders.hitrate)
 
-// Warm the chart chunk once the browser is idle
-const idle = window.requestIdleCallback || (cb => setTimeout(cb, 1200))
-idle(() => import('./charts/echarts.js'))
+// Load every view (and ECharts) once the browser is idle, so later tab switches need no
+// network and keep working even after a redeploy replaces the old asset files.
+// (the timeout matters: an animating page may never report idle time)
+const idle = cb => (window.requestIdleCallback ? requestIdleCallback(cb, { timeout: 1500 }) : setTimeout(cb, 600))
+idle(() => Object.values(loaders).forEach(load => load().catch(() => {})))
 
 const views = {
   overview: OverviewView,
