@@ -43,9 +43,11 @@ const views = {
   <div class="app">
     <TopBar />
     <main class="main">
-      <KeepAlive>
-        <component :is="views[store.tab]" />
-      </KeepAlive>
+      <Transition name="view" mode="out-in">
+        <KeepAlive>
+          <component :is="views[store.tab]" :key="store.tab" />
+        </KeepAlive>
+      </Transition>
     </main>
     <FooterBar />
   </div>

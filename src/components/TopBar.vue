@@ -138,7 +138,7 @@ const showArmor = computed(() => store.tab !== 'hitrate')
   font-weight: 650;
 }
 
-.tabs button[aria-selected='true']::after {
+.tabs button::after {
   content: '';
   position: absolute;
   right: 12px;
@@ -147,6 +147,12 @@ const showArmor = computed(() => store.tab !== 'hitrate')
   height: 2px;
   border-radius: 2px 2px 0 0;
   background: var(--brand);
+  transform: scaleX(0);
+  transition: transform 360ms var(--ease-out);
+}
+
+.tabs button[aria-selected='true']::after {
+  transform: scaleX(1);
 }
 
 .armor {

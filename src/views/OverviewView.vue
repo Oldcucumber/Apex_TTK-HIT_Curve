@@ -319,12 +319,21 @@ const armorColor = computed(() => `var(${ARMORS.find(a => a.key === store.armor)
   transition: border-color 140ms ease, transform 140ms ease;
 }
 
+.lead {
+  transition: transform 320ms var(--ease-spring), box-shadow 260ms var(--ease-out);
+}
+
 .lead:hover:not(:disabled) {
-  border-color: var(--line-2);
+  transform: translateY(-2px);
+}
+
+.lead:active:not(:disabled) {
+  transform: translateY(0) scale(0.985);
+  transition-duration: 90ms;
 }
 
 .lead.on {
-  border-color: var(--dot);
+  box-shadow: var(--shadow), inset 0 0 0 1.5px var(--dot);
 }
 
 .lead-label {
@@ -465,6 +474,10 @@ tbody tr {
   cursor: pointer;
 }
 
+tbody td {
+  transition: background-color 180ms var(--ease-out);
+}
+
 tbody tr:hover td {
   background: var(--hover);
 }
@@ -600,6 +613,7 @@ td.c-num {
     color-mix(in srgb, var(--dot) 24%, transparent) var(--w),
     transparent var(--w)
   );
+  transition: --w 520ms var(--ease-out);
   pointer-events: none;
 }
 

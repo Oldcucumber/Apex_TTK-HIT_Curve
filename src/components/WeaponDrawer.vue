@@ -120,7 +120,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
       <div class="big">
         <div v-for="b in big" :key="b.label">
           <span class="label">{{ b.label }}</span>
-          <strong class="num">{{ b.v }}<small v-if="b.unit && b.v !== '—'">{{ b.unit }}</small></strong>
+          <strong class="num" :class="{ long: String(b.v).length > 6 }">{{ b.v }}<small v-if="b.unit && b.v !== '—'">{{ b.unit }}</small></strong>
         </div>
       </div>
 
@@ -244,7 +244,7 @@ h3.label {
 
 .big {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   margin-top: 12px;
 }
@@ -266,6 +266,14 @@ h3.label {
   font-size: 20px;
   font-weight: 650;
   letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+/* ranges such as "1.43~2.15" need a smaller size to fit the tile */
+.big strong.long {
+  padding-top: 5px;
+  font-size: 13px;
+  letter-spacing: -0.01em;
 }
 
 small {
@@ -320,6 +328,7 @@ small {
   height: 100%;
   border-radius: 4px;
   background: var(--dot);
+  transition: width 520ms var(--ease-out);
 }
 
 .zones,
@@ -465,7 +474,40 @@ footer .btn {
   width: 100%;
   height: 34px;
 }
+/* the panel glides in and settles; on phones it comes up from the bottom edge */
+.drawer {
+  animation: drawer-in 420ms var(--ease-out);
+}
+
+.drawer.sheet {
+  animation: sheet-in 460ms var(--ease-out);
+}
+
+.chg {
+  animation: rise-in 420ms var(--ease-out) 80ms backwards;
+}
+
+@keyframes drawer-in {
+  from {
+    opacity: 0;
+    transform: translateX(22px);
+  }
+}
+
+@keyframes sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes scrim-in {
+  from {
+    opacity: 0;
+  }
+}
+
 .scrim {
+  animation: scrim-in 260ms ease-out;
   position: fixed;
   inset: 0;
   z-index: 60;

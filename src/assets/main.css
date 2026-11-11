@@ -89,6 +89,20 @@
   --chg-fix: #facc15;
 }
 
+/* Motion: quick ease-out for state changes, a soft overshoot for things that pop in */
+:root {
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* lets the table bars animate their width (a custom property inside a gradient) */
+@property --w {
+  syntax: '<percentage>';
+  inherits: false;
+  initial-value: 0%;
+}
+
 *,
 *::before,
 *::after {
@@ -239,7 +253,7 @@ a {
   color: var(--text-3);
   font-size: 12.5px;
   white-space: nowrap;
-  transition: background-color 140ms ease, color 140ms ease, box-shadow 140ms ease;
+  transition: background-color 220ms var(--ease-out), color 220ms var(--ease-out), box-shadow 220ms var(--ease-out), transform 260ms var(--ease-spring);
 }
 
 .seg button:hover {
@@ -267,12 +281,12 @@ a {
   color: var(--text-3);
   font-size: 12.5px;
   white-space: nowrap;
-  transition: background-color 140ms ease, color 140ms ease, box-shadow 140ms ease, opacity 140ms ease;
+  transition: background-color 220ms var(--ease-out), color 220ms var(--ease-out), box-shadow 220ms var(--ease-out), transform 260ms var(--ease-spring);
 }
 
 .chip .dot {
   opacity: 0.3;
-  transition: opacity 140ms ease;
+  transition: opacity 220ms var(--ease-out), transform 300ms var(--ease-spring);
 }
 
 .chip:hover {
@@ -309,15 +323,23 @@ a {
   font-size: 12.5px;
   white-space: nowrap;
   box-shadow: var(--shadow-sm);
-  transition: background-color 120ms ease, opacity 120ms ease, transform 120ms ease;
+  transition: background-color 200ms var(--ease-out), opacity 200ms var(--ease-out), transform 260ms var(--ease-spring);
 }
 
 .btn:hover:not(:disabled) {
   background: color-mix(in srgb, var(--raised) 92%, var(--text));
 }
 
-.btn:active:not(:disabled) {
-  transform: translateY(0.5px);
+.btn:active:not(:disabled),
+.chip:active,
+.seg button:active,
+.icon-btn:active {
+  transform: scale(0.96);
+  transition-duration: 80ms;
+}
+
+.chip[aria-pressed='true'] .dot {
+  transform: scale(1.15);
 }
 
 .btn:disabled {
@@ -347,6 +369,10 @@ a {
   border-radius: 8px;
   background: transparent;
   color: var(--text-2);
+}
+
+.icon-btn {
+  transition: background-color 200ms var(--ease-out), color 200ms var(--ease-out), transform 260ms var(--ease-spring);
 }
 
 .icon-btn:hover {
@@ -472,3 +498,48 @@ select.field {
   --k4: #c084fc;
 }
 
+
+/* ------------------------------------------------------------------
+ * Motion
+ * ------------------------------------------------------------------ */
+
+/* page switch: the new view settles in from slightly below */
+.view-enter-active {
+  transition: opacity 320ms var(--ease-out), transform 420ms var(--ease-out);
+}
+
+.view-leave-active {
+  transition: opacity 110ms ease-in;
+}
+
+.view-enter-from {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.view-leave-to {
+  opacity: 0;
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    transition-duration: 1ms !important;
+  }
+}

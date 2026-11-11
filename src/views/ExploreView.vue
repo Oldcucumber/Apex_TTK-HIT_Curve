@@ -101,6 +101,28 @@ const pickLabels = (pts, sparse) => {
   return out
 }
 
+/**
+ * Order the states of one weapon so the connector visits each nearest neighbour in turn
+ * (in the plotted space), which avoids the zig-zags a plain left-to-right order produces.
+ */
+const chain = list => {
+  const f = v => (log.value ? Math.log(v) : v)
+  const xs = points.value.map(p => f(p.x))
+  const ys = points.value.map(p => f(p.y))
+  const sx = Math.max(...xs) - Math.min(...xs) || 1
+  const sy = Math.max(...ys) - Math.min(...ys) || 1
+  const dist = (a, b) => Math.hypot((f(a.x) - f(b.x)) / sx, (f(a.y) - f(b.y)) / sy)
+  const rest = [...list].sort((a, b) => a.x - b.x || a.y - b.y)
+  const out = [rest.shift()]
+  while (rest.length) {
+    const last = out[out.length - 1]
+    let best = 0
+    for (let i = 1; i < rest.length; i++) if (dist(last, rest[i]) < dist(last, rest[best])) best = i
+    out.push(rest.splice(best, 1)[0])
+  }
+  return out
+}
+
 const buildScatter = tk => {
   const mx = METRIC[xKey.value]
   const my = METRIC[yKey.value]
@@ -139,21 +161,28 @@ const buildScatter = tk => {
   // Thin connectors between the states of the same weapon (e.g. Bocek with/without stock)
   const families = {}
   for (const p of points.value) (families[baseOf(p.w)] ||= []).push(p)
-  const links = Object.values(families)
-    .filter(list => list.length > 1)
-    .map(list => ({
+  const selectedBase = selected.value ? baseOf(selected.value) : null
+  const links = Object.entries(families)
+    .filter(([, list]) => list.length > 1)
+    .map(([base, list]) => ({
       type: 'line',
       silent: true,
       z: 1,
       symbol: 'none',
       animation: false,
       tooltip: { show: false },
-      lineStyle: { color: tk.cls[list[0].w.cls], width: 1, opacity: 0.35 },
-      data: [...list].sort((a, b) => a.x - b.x || a.y - b.y).map(p => [p.x, p.y])
+      // faint by default; the selected weapon's family stands out
+      lineStyle: base === selectedBase
+        ? { color: tk.cls[list[0].w.cls], width: 1.6, opacity: 0.85 }
+        : { color: tk.cls[list[0].w.cls], width: 1, opacity: 0.22, type: [3, 3] },
+      data: chain(list).map(p => [p.x, p.y])
     }))
 
   return {
-    animationDuration: 200,
+    animationDuration: 520,
+    animationEasing: 'cubicOut',
+    animationDurationUpdate: 520,
+    animationEasingUpdate: 'cubicInOut',
     grid: store.mobile
       ? { top: 30, right: 16, bottom: 34, left: 4, containLabel: true }
       : { top: 18, right: 72, bottom: 62, left: 40, containLabel: true },
@@ -209,9 +238,12 @@ const buildScatter = tk => {
       // Name every point that has room; overlapping labels are dropped by labelLayout
       label: { position: 'right', distance: 4, color: tk.soft, fontSize: 11, formatter: ({ data }) => labelText(data.w, sparse) },
       labelLayout: { hideOverlap: true },
+      // points pop in one after another, fastest-first
+      animationDelay: idx => idx * 12,
       data: list.map(p => {
         const on = p.w.id === store.selected
         return {
+          id: p.w.key,
           value: [p.x, p.y],
           w: p.w,
           label: { show: on || labelled.has(p.w.id), ...(on ? { color: tk.text, fontWeight: 650, formatter: () => shortName(p.w, 22) } : {}) },
@@ -237,7 +269,10 @@ const buildRank = tk => {
   const med = median(m, store.armor, list.map(p => p.w))
 
   return {
-    animationDuration: 200,
+    animationDuration: 520,
+    animationEasing: 'cubicOut',
+    animationDurationUpdate: 420,
+    animationEasingUpdate: 'cubicInOut',
     grid: { top: 26, right: scroll ? 44 : 56, bottom: 8, left: 8, containLabel: true },
     tooltip: {
       ...tooltip(tk),
@@ -266,6 +301,7 @@ const buildRank = tk => {
     series: [{
       type: 'bar',
       barMaxWidth: 11,
+      animationDelay: idx => Math.min(idx, 30) * 10,
       markLine: {
         silent: true,
         symbol: 'none',
