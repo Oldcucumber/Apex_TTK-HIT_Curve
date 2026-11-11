@@ -75,40 +75,6 @@ const colors = computed(() => {
   return map
 })
 
-const LABEL_GAP = 15 // px between end labels
-
-/**
- * Vertical nudges (px, positive = down) that keep the end labels at the 100% edge apart.
- * Curves that finish within a few hundredths of a second would otherwise print on top of
- * each other; each tight group is fanned out around its own centre, in curve order.
- */
-const spreadLabels = (list, yMax) => {
-  const plotH = Math.max(120, (host.value?.clientHeight || 600) - 14 - 62 - 24)
-  const items = list
-    .map(c => ({ id: c.id, px: (c.points[0][1] / yMax) * plotH })) // height above the axis
-    .sort((a, b) => a.px - b.px)
-  const groups = []
-  for (const it of items) {
-    let g = { items: [it], centre: it.px }
-    const low = x => x.centre - ((x.items.length - 1) / 2) * LABEL_GAP
-    const high = x => x.centre + ((x.items.length - 1) / 2) * LABEL_GAP
-    while (groups.length && high(groups[groups.length - 1]) + LABEL_GAP > low(g)) {
-      const prev = groups.pop()
-      const merged = [...prev.items, ...g.items]
-      g = { items: merged, centre: merged.reduce((s, x) => s + x.px, 0) / merged.length }
-    }
-    // keep the fan inside the plot
-    const half = ((g.items.length - 1) / 2) * LABEL_GAP
-    g.centre = Math.min(Math.max(g.centre, half + 6), plotH - half - 6)
-    groups.push(g)
-  }
-  const out = new Map()
-  for (const g of groups) {
-    g.items.forEach((it, i) => out.set(it.id, -(g.centre + (i - (g.items.length - 1) / 2) * LABEL_GAP - it.px)))
-  }
-  return out
-}
-
 const build = tk => {
   const list = visible.value
   let minX = 100
@@ -126,18 +92,12 @@ const build = tk => {
   const yMax = Math.min(MAX_Y, Math.max(1, Math.ceil((maxY * 1.03) / step) * step))
   const isFew = few.value
   const mobile = store.mobile
-  const nudge = isFew && !mobile ? spreadLabels(list, yMax) : new Map()
 
   return {
-    // a handful of curves draw in with an ease-out; dozens would only add noise
-    animation: isFew,
-    animationDuration: 620,
-    animationEasing: 'cubicOut',
-    animationDurationUpdate: 380,
-    animationEasingUpdate: 'cubicInOut',
+    animation: false,
     grid: {
       top: 14,
-      right: isFew && !mobile ? 168 : mobile ? 22 : 24,
+      right: isFew && !mobile ? 130 : mobile ? 22 : 24,
       bottom: mobile ? 34 : 62,
       left: mobile ? 4 : 12,
       containLabel: true
@@ -177,8 +137,9 @@ const build = tk => {
         lineStyle: { width: isFew ? 2.4 : 1.6, color },
         itemStyle: { color },
         endLabel: isFew && !mobile
-          ? { show: true, formatter: () => shortLabel(c), color, fontSize: 12, fontWeight: 600, distance: 10, offset: [0, nudge.get(c.id) ?? 0] }
+          ? { show: true, formatter: () => shortLabel(c), color, fontSize: 12, fontWeight: 600, distance: 8 }
           : { show: false },
+        labelLayout: { moveOverlap: 'shiftY' },
         emphasis: { focus: 'series', lineStyle: { width: 3.2 } },
         blur: { lineStyle: { opacity: 0.1 }, itemStyle: { opacity: 0.1 } },
         // ascending hit rate so the end label sits at the 100% edge where curves are compared
@@ -252,7 +213,7 @@ const focus = (id, on) => {
       </div>
       <div v-if="tab === 'top'" class="scroll top">
         <p class="top-head muted">{{ t('hr.top') }} · <b class="num">{{ rate }}%</b></p>
-        <TransitionGroup tag="ol" name="rank">
+        <ol>
           <li
             v-for="(r, i) in ranking"
             :key="r.c.id"
@@ -267,7 +228,7 @@ const focus = (id, on) => {
               <b class="num">{{ r.ttk.toFixed(2) }}s</b>
             </button>
           </li>
-        </TransitionGroup>
+        </ol>
         <div class="top-acts">
           <button class="btn" @click="showTop">{{ t('hr.showTop') }}</button>
           <button class="btn" @click="showSuggested">{{ t('hr.default') }}</button>
@@ -432,47 +393,9 @@ const focus = (id, on) => {
 }
 
 ol {
-  position: relative;
   margin: 0;
   padding: 0;
   list-style: none;
-}
-
-/* rows glide to their new rank as the slider moves */
-.rank-move {
-  transition: transform 460ms var(--ease-out);
-}
-
-.rank-enter-active {
-  transition: opacity 320ms var(--ease-out), transform 420ms var(--ease-out);
-}
-
-.rank-leave-active {
-  position: absolute;
-  right: 0;
-  left: 0;
-  transition: opacity 160ms ease-in;
-}
-
-.rank-enter-from {
-  opacity: 0;
-  transform: translateX(12px);
-}
-
-.rank-leave-to {
-  opacity: 0;
-}
-
-.sw {
-  transition: background-color 260ms var(--ease-out);
-}
-
-.rate input::-webkit-slider-thumb {
-  transition: transform 260ms var(--ease-spring);
-}
-
-.rate input:active::-webkit-slider-thumb {
-  transform: scale(1.2);
 }
 
 .item.rank {
