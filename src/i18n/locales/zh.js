@@ -52,7 +52,6 @@ export default {
   "ex.better.low": "越小越好",
   "ex.better.high": "越大越好",
   "ex.nodata": "该指标暂无数据",
-  "ex.hint": "悬停查看数值，滚轮缩放，拖动平移",
   "ex.sweetShort": "优势区",
   "ex.median": "中位数",
   "ex.sweet": "优势区（两项均优于中位数）",
@@ -147,7 +146,6 @@ export default {
   "hr.solo": "只看这把",
   "hr.search": "筛选武器…",
   "hr.visible": "显示 {n} / {total}",
-  "hr.pickHint": "已全部隐藏，在右侧点击武器名添加曲线",
   "hr.legend": "武器",
   "dr.mag.white": "白弹匣",
   "dr.mag.blue": "蓝弹匣",
@@ -176,5 +174,16 @@ export default {
   "field.mag.none": "无弹匣",
   "field.mag.white": "白弹匣",
   "field.mag.blue": "蓝弹匣",
-  "field.mag.purple": "紫弹匣"
+  "field.mag.purple": "紫弹匣",
+  "ov.abilities": "含技能",
+  "hr.myRate": "我的命中率",
+  "hr.top": "该命中率下最快",
+  "hr.all": "全部武器",
+  "hr.help": "计算方式",
+  "hr.default": "推荐",
+  "hr.outOfMag": "一个弹匣打不死",
+  "ex.hint": "点击查看详情，悬停看数值，滚轮缩放，拖动平移",
+  "ex.states": "{n} 个状态",
+  "hr.showTop": "只显示这些",
+  "hr.pickHint": "还没有显示任何曲线，在右侧点击武器添加"
 }

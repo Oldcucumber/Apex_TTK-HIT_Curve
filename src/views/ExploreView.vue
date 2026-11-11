@@ -1,12 +1,13 @@
 <script setup>
-import { computed, ref } from 'vue'
-import { GROUPS, METRICS, METRIC, display, formatValue, median, value, weapons } from '../data/metrics.js'
+import { computed, onMounted, ref } from 'vue'
+import { GROUPS, METRICS, METRIC, display, formatValue, isAbility, median, value, weaponById, weapons } from '../data/metrics.js'
 import { store } from '../store.js'
 import { clsName, fullName, metricName, nameOf, shortName, t } from '../i18n/index.js'
 import { useChart } from '../charts/useChart.js'
 import { axis, slider, tooltip } from '../charts/theme.js'
 import ClassFilter from '../components/ClassFilter.vue'
 import Seg from '../components/Seg.vue'
+import WeaponDrawer from '../components/WeaponDrawer.vue'
 
 const ROW_H = 18
 
@@ -31,7 +32,11 @@ const optionsByGroup = computed(() =>
   }))
 )
 
-const pool = computed(() => weapons.filter(w => !classes.value.length || classes.value.includes(w.cls)))
+// Abilities are reference rows in the sheet, not weapon picks: they would only skew the axes
+const pool = computed(() => weapons.filter(w => !isAbility(w) && (!classes.value.length || classes.value.includes(w.cls))))
+
+const selected = computed(() => weaponById.get(store.selected) ?? null)
+const baseOf = w => w.name.zh[0]
 
 const axisName = m => {
   const base = metricName(m) + (m.unit && m.unit !== '%' ? ` (${m.unit})` : '')
@@ -68,6 +73,7 @@ const pickLabels = (pts, sparse) => {
   const [y0, y1] = [Math.min(...ys), Math.max(...ys)]
   const nodes = pts.map((p, i) => ({
     id: p.w.id,
+    base: baseOf(p.w),
     u: (xs[i] - x0) / (x1 - x0 || 1),
     v: (ys[i] - y0) / (y1 - y0 || 1),
     len: labelText(p.w, sparse).length
@@ -80,12 +86,16 @@ const pickLabels = (pts, sparse) => {
   const H = 16 / Math.max(160, (host.value?.clientHeight || 700) - 90)
   const placed = []
   const out = new Set()
+  // states of one weapon are joined by a line, so the name is only needed once per weapon
+  const named = new Set()
   for (const n of [...nodes].sort((a, b) => b.iso - a.iso)) {
+    if (!sparse && named.has(n.base)) continue
     const box = { l: n.u + 0.006, r: n.u + 0.006 + n.len * W, t: n.v + H / 2, b: n.v - H / 2 }
     const hit = placed.some(o => box.l < o.r && box.r > o.l && box.b < o.t && box.t > o.b) ||
       nodes.some(o => o !== n && o.u > box.l && o.u < box.r && Math.abs(o.v - n.v) < H / 2)
     if (hit || box.r > 1.04) continue // collides, or would run off the right edge
     placed.push(box)
+    named.add(n.base)
     out.add(n.id)
   }
   return out
@@ -113,7 +123,7 @@ const buildScatter = tk => {
   const markers = {
     markArea: {
       silent: true,
-      itemStyle: { color: tk.grid },
+      itemStyle: { color: tk.accent, opacity: 0.06 },
       label: { color: tk.muted, fontSize: 11, position: 'insideTopLeft' },
       data: sweet
     },
@@ -125,6 +135,22 @@ const buildScatter = tk => {
       data: medX != null && medY != null ? [{ xAxis: medX }, { yAxis: medY, label: { position: 'insideEndTop' } }] : []
     }
   }
+
+  // Thin connectors between the states of the same weapon (e.g. Bocek with/without stock)
+  const families = {}
+  for (const p of points.value) (families[baseOf(p.w)] ||= []).push(p)
+  const links = Object.values(families)
+    .filter(list => list.length > 1)
+    .map(list => ({
+      type: 'line',
+      silent: true,
+      z: 1,
+      symbol: 'none',
+      animation: false,
+      tooltip: { show: false },
+      lineStyle: { color: tk.cls[list[0].w.cls], width: 1, opacity: 0.35 },
+      data: [...list].sort((a, b) => a.x - b.x || a.y - b.y).map(p => [p.x, p.y])
+    }))
 
   return {
     animationDuration: 200,
@@ -167,10 +193,12 @@ const buildScatter = tk => {
       { type: 'inside', yAxisIndex: 0, filterMode: 'none' },
       ...(store.mobile ? [] : [{ ...slider(tk), type: 'slider', xAxisIndex: 0, bottom: 6, height: 16, filterMode: 'none' }])
     ],
-    series: Object.entries(byClass).map(([cls, list], i) => ({
+    series: [...links, ...Object.entries(byClass).map(([cls, list], i) => ({
       ...(i === 0 ? markers : {}),
       name: cls,
       type: 'scatter',
+      z: 3,
+      cursor: 'pointer',
       symbolSize: store.mobile ? 9 : 11,
       itemStyle: { color: tk.cls[cls], opacity: 0.85, borderColor: tk.panel, borderWidth: 1.5 },
       emphasis: {
@@ -181,10 +209,20 @@ const buildScatter = tk => {
       // Name every point that has room; overlapping labels are dropped by labelLayout
       label: { position: 'right', distance: 4, color: tk.soft, fontSize: 11, formatter: ({ data }) => labelText(data.w, sparse) },
       labelLayout: { hideOverlap: true },
-      data: list.map(p => ({ value: [p.x, p.y], w: p.w, label: { show: labelled.has(p.w.id) } }))
-    }))
+      data: list.map(p => {
+        const on = p.w.id === store.selected
+        return {
+          value: [p.x, p.y],
+          w: p.w,
+          label: { show: on || labelled.has(p.w.id), ...(on ? { color: tk.text, fontWeight: 650, formatter: () => shortName(p.w, 22) } : {}) },
+          ...(on ? { symbolSize: store.mobile ? 14 : 16, itemStyle: { opacity: 1, borderColor: tk.text, borderWidth: 2 } } : {})
+        }
+      })
+    }))]
   }
 }
+
+let rankList = [] // rows of the rank chart, for click lookup
 
 const buildRank = tk => {
   const m = METRIC[metricKey.value]
@@ -192,6 +230,7 @@ const buildRank = tk => {
     .map(w => ({ w, v: value(w, m, store.armor) }))
     .filter(p => p.v != null)
     .sort((a, b) => (m.dir === 'low' ? a.v - b.v : b.v - a.v))
+  rankList = list
   const fit = Math.max(8, Math.floor(((host.value?.clientHeight || 600) - 40) / ROW_H))
   const rows = Math.min(list.length, fit)
   const scroll = rows < list.length
@@ -236,7 +275,8 @@ const buildRank = tk => {
       },
       itemStyle: { borderRadius: [0, 4, 4, 0] },
       label: { show: true, position: 'right', color: tk.soft, fontSize: 11, formatter: ({ dataIndex }) => display(list[dataIndex].w, m, store.armor) },
-      data: list.map(p => ({ value: p.v, itemStyle: { color: tk.cls[p.w.cls] } }))
+      cursor: 'pointer',
+      data: list.map(p => ({ value: p.v, itemStyle: { color: tk.cls[p.w.cls], opacity: store.selected == null || p.w.id === store.selected ? 1 : 0.45 } }))
     }]
   }
 }
@@ -244,9 +284,17 @@ const buildRank = tk => {
 const api = useChart(
   host,
   tk => (mode.value === 'scatter' ? buildScatter(tk) : buildRank(tk)),
-  [mode, classes, xKey, yKey, metricKey, log, () => store.armor, () => store.mobile],
+  [mode, classes, xKey, yKey, metricKey, log, () => store.armor, () => store.mobile, () => store.selected],
   () => mode.value === 'rank' && api.render()
 )
+
+// Click a point or a bar to open the weapon's details (click it again to close)
+onMounted(() => {
+  api.chart.value?.on('click', e => {
+    const w = e.data?.w ?? (e.seriesType === 'bar' ? rankList[e.dataIndex]?.w : null)
+    if (w) store.selected = store.selected === w.id ? null : w.id
+  })
+})
 
 const empty = computed(() => (mode.value === 'scatter' ? !points.value.length : false))
 </script>
@@ -287,10 +335,13 @@ const empty = computed(() => (mode.value === 'scatter' ? !points.value.length : 
       </div>
     </div>
 
-    <div class="card stage">
-      <div ref="host" class="chart-host"></div>
-      <div v-if="empty" class="empty overlay">{{ t('ex.nodata') }}</div>
-      <span v-if="!store.mobile" class="hint muted">{{ t('ex.hint') }}</span>
+    <div class="body" :class="{ withDrawer: selected && !store.mobile }">
+      <div class="card stage">
+        <div ref="host" class="chart-host"></div>
+        <div v-if="empty" class="empty overlay">{{ t('ex.nodata') }}</div>
+        <span v-if="!store.mobile" class="hint muted">{{ t('ex.hint') }}</span>
+      </div>
+      <WeaponDrawer v-if="selected" :weapon="selected" :sheet="store.mobile" @close="store.selected = null" />
     </div>
   </section>
 </template>
@@ -314,9 +365,21 @@ const empty = computed(() => (mode.value === 'scatter' ? !points.value.length : 
   text-align: right;
 }
 
+.body {
+  display: grid;
+  flex: 1;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  min-height: 0;
+}
+
+.body.withDrawer {
+  grid-template-columns: minmax(0, 1fr) 340px;
+}
+
 .stage {
   position: relative;
-  flex: 1;
+  min-width: 0;
   padding: 8px 10px;
 }
 

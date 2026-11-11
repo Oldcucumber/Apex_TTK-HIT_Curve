@@ -101,6 +101,13 @@ const updated = meta.updated.replaceAll('-', '/')
   font-size: 11px;
   text-align: left;
   text-overflow: ellipsis;
+  /* easter egg: stays out of sight until the footer is hovered, so it never reads as a real error */
+  opacity: 0;
+  transition: opacity 200ms ease;
+}
+
+.footer:hover .log,
+.log:focus-visible {
   opacity: 0.7;
 }
 
@@ -117,9 +124,7 @@ const updated = meta.updated.replaceAll('-', '/')
   }
 
   .log {
-    flex-basis: 100%;
-    order: 9;
-    white-space: normal;
+    display: none;
   }
 
   .people {

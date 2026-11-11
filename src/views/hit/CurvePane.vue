@@ -1,9 +1,10 @@
 <script setup>
-import { computed, reactive, ref } from 'vue'
-import { curveGroups, curves } from '../../data/curves.js'
+import { computed, reactive, ref, watch } from 'vue'
+import { curveGroups, curves, ttkAt } from '../../data/curves.js'
 import { classVar } from '../../data/meta.js'
 import { store } from '../../store.js'
 import { clsName, fullName, shortName, t } from '../../i18n/index.js'
+import Seg from '../../components/Seg.vue'
 import { useChart } from '../../charts/useChart.js'
 import { axis, distinctPalette, shade, slider, tokens, tooltip } from '../../charts/theme.js'
 
@@ -13,9 +14,41 @@ const MAX_Y = 10
 const FEW = 12
 
 const host = ref(null)
-const hidden = reactive(new Set())
+// 52 curves at once are unreadable: start with the fastest weapon of each class
+const suggested = new Set(curveGroups.map(g => [...g.items].sort((a, b) => a.points[0][1] - b.points[0][1])[0].id))
+const hidden = reactive(new Set(curves.filter(c => !suggested.has(c.id)).map(c => c.id)))
 const query = ref('')
-const legendOpen = ref(false)
+const legendOpen = ref(true) // phones: the ranking sits under the chart, keep it open
+
+// "My hit rate": ranks every weapon (shown or not) by TTK at that hit rate
+const rate = ref(50)
+const TOP = 10
+const tab = ref('top')
+const tabOptions = computed(() => [
+  { value: 'top', label: `Top ${TOP}` },
+  { value: 'all', label: t('hr.all') }
+])
+const ranking = computed(() =>
+  curves
+    .map(c => ({ c, ttk: ttkAt(c, rate.value) }))
+    .filter(r => r.ttk != null)
+    .sort((a, b) => a.ttk - b.ttk)
+    .slice(0, TOP)
+)
+const showOnly = ids => {
+  const keep = new Set(ids)
+  for (const c of curves) keep.has(c.id) ? hidden.delete(c.id) : hidden.add(c.id)
+}
+const showTop = () => showOnly(ranking.value.map(r => r.c.id))
+const showSuggested = () => showOnly(suggested)
+const rateLine = tk => ({
+  silent: true,
+  symbol: 'none',
+  animation: false,
+  lineStyle: { color: tk.accent, width: 1.5, type: 'solid', opacity: 0.9 },
+  label: { formatter: `${rate.value}%`, color: tk.accent, fontSize: 11, fontWeight: 650, position: 'start', distance: 6 },
+  data: [{ xAxis: rate.value }]
+})
 
 const visible = computed(() => curves.filter(c => !hidden.has(c.id)))
 const few = computed(() => visible.value.length <= FEW)
@@ -63,7 +96,7 @@ const build = tk => {
   return {
     animation: false,
     grid: {
-      top: 36,
+      top: 14,
       right: isFew && !mobile ? 130 : mobile ? 22 : 24,
       bottom: mobile ? 34 : 62,
       left: mobile ? 4 : 12,
@@ -91,7 +124,7 @@ const build = tk => {
       { type: 'inside', yAxisIndex: 0, filterMode: 'none' },
       ...(mobile ? [] : [{ ...slider(tk), type: 'slider', xAxisIndex: 0, bottom: 6, height: 16, filterMode: 'none' }])
     ],
-    series: list.map(c => {
+    series: [{ id: '__rate', type: 'line', data: [], silent: true, markLine: rateLine(tk) }, ...list.map(c => {
       const color = colors.value.get(c.id)
       return {
         id: c.id,
@@ -112,11 +145,13 @@ const build = tk => {
         // ascending hit rate so the end label sits at the 100% edge where curves are compared
         data: [...c.points].reverse()
       }
-    })
+    })]
   }
 }
 
 const { chart, render } = useChart(host, build, [visible, () => store.mobile])
+// moving the slider only moves the marker (a full re-render would reset the zoom)
+watch(rate, () => chart.value?.setOption({ series: [{ id: '__rate', markLine: rateLine(tokens()) }] }))
 
 // ---- legend actions ----
 const toggle = id => { hidden.has(id) ? hidden.delete(id) : hidden.add(id) }
@@ -148,10 +183,18 @@ const focus = (id, on) => {
 <template>
   <div class="curve">
     <div class="card stage">
-      <div ref="host" class="chart-host"></div>
-      <span v-if="!store.mobile" class="hint muted">{{ t('hr.hint') }}</span>
-      <button class="btn reset" @click="render">{{ t('hr.reset') }}</button>
-      <div v-if="!visible.length" class="empty cover">{{ t('hr.pickHint') }}</div>
+      <div class="rate-bar">
+        <label class="rate">
+          <span class="label">{{ t('hr.myRate') }}</span>
+          <input v-model.number="rate" type="range" min="10" max="100" step="1" :style="{ '--p': `${((rate - 10) / 90) * 100}%` }">
+          <b class="num">{{ rate }}%</b>
+        </label>
+        <button class="btn reset" @click="render">{{ t('hr.reset') }}</button>
+      </div>
+      <div class="plot">
+        <div ref="host" class="chart-host"></div>
+        <div v-if="!visible.length" class="empty cover">{{ t('hr.pickHint') }}</div>
+      </div>
     </div>
 
     <aside class="card legend" :class="{ open: legendOpen }">
@@ -165,10 +208,36 @@ const focus = (id, on) => {
           <button class="btn" :disabled="!visible.length" @click="hideAll">{{ t('hr.none') }}</button>
         </div>
       </header>
-      <div class="search-row">
+      <div class="tabs">
+        <Seg v-model="tab" :options="tabOptions" />
+      </div>
+      <div v-if="tab === 'top'" class="scroll top">
+        <p class="top-head muted">{{ t('hr.top') }} · <b class="num">{{ rate }}%</b></p>
+        <ol>
+          <li
+            v-for="(r, i) in ranking"
+            :key="r.c.id"
+            :class="{ off: hidden.has(r.c.id) }"
+            @mouseenter="focus(r.c.id, true)"
+            @mouseleave="focus(r.c.id, false)"
+          >
+            <button class="item rank" :aria-pressed="!hidden.has(r.c.id)" @click="toggle(r.c.id)">
+              <em class="num">{{ i + 1 }}</em>
+              <i class="sw" :style="{ background: colors.get(r.c.id) }"></i>
+              <span>{{ label(r.c) }}</span>
+              <b class="num">{{ r.ttk.toFixed(2) }}s</b>
+            </button>
+          </li>
+        </ol>
+        <div class="top-acts">
+          <button class="btn" @click="showTop">{{ t('hr.showTop') }}</button>
+          <button class="btn" @click="showSuggested">{{ t('hr.default') }}</button>
+        </div>
+      </div>
+      <div v-if="tab === 'all'" class="search-row">
         <input v-model="query" class="field" type="search" :placeholder="t('hr.search')">
       </div>
-      <div class="scroll">
+      <div v-if="tab === 'all'" class="scroll">
         <section v-for="g in filteredGroups" :key="g.cls" :style="{ '--dot': classVar(g.cls) }">
           <button class="gh" :aria-pressed="groupVisible(g)" @click="toggleGroup(g)">
             <i class="dot"></i>{{ clsName(g.cls) }}<small>{{ g.items.filter(c => !hidden.has(c.id)).length }}/{{ g.items.length }}</small>
@@ -205,30 +274,173 @@ const focus = (id, on) => {
 }
 
 .stage {
-  position: relative;
-  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 10px 12px 8px;
 }
 
-.hint {
-  position: absolute;
-  top: 9px;
-  left: 16px;
-  font-size: 11.5px;
-  pointer-events: none;
+.rate-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 2px 4px 6px;
+}
+
+.rate {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.rate .label {
+  flex-shrink: 0;
+}
+
+.rate b {
+  flex-shrink: 0;
+  min-width: 44px;
+  color: var(--accent);
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.rate input {
+  flex: 1;
+  min-width: 0;
+  max-width: 420px;
+  height: 18px;
+  margin: 0;
+  background: none;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+}
+
+.rate input::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--accent) var(--p), var(--track) var(--p));
+}
+
+.rate input::-moz-range-track {
+  height: 4px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--accent) var(--p), var(--track) var(--p));
+}
+
+.rate input::-webkit-slider-thumb {
+  width: 16px;
+  height: 16px;
+  margin-top: -6px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--raised);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent), 0 2px 6px rgba(0, 0, 0, 0.18);
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.rate input::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--raised);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent), 0 2px 6px rgba(0, 0, 0, 0.18);
 }
 
 .reset {
-  position: absolute;
-  top: 6px;
-  right: 10px;
+  flex-shrink: 0;
   height: 26px;
+}
+
+.plot {
+  position: relative;
+  flex: 1;
+  min-height: 0;
 }
 
 .cover {
   position: absolute;
-  inset: 40px 10px 10px;
+  inset: 10px;
   height: auto;
   pointer-events: none;
+}
+
+.tabs {
+  padding: 10px 10px 2px;
+}
+
+.tabs .seg {
+  display: flex;
+}
+
+.tabs .seg :deep(button) {
+  flex: 1;
+  justify-content: center;
+}
+
+.top-head {
+  margin: 8px 8px 6px;
+  font-size: 12px;
+}
+
+.top-head b {
+  color: var(--accent);
+}
+
+ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item.rank {
+  padding: 6px 8px;
+}
+
+.rank em {
+  width: 16px;
+  color: var(--text-3);
+  font-size: 11.5px;
+  font-style: normal;
+  text-align: right;
+}
+
+.rank span {
+  flex: 1;
+}
+
+.rank b {
+  color: var(--text);
+  font-weight: 650;
+}
+
+li.off .rank .sw {
+  background: var(--line-2) !important;
+}
+
+/* in the ranking a hidden curve is still a result: dim it, do not strike it out */
+li.off .item.rank {
+  opacity: 0.62;
+}
+
+li.off .item.rank span {
+  text-decoration: none;
+}
+
+.top-acts {
+  display: flex;
+  gap: 6px;
+  padding: 10px 8px 2px;
+}
+
+.top-acts .btn {
+  flex: 1;
+  height: 28px;
 }
 
 .legend {
@@ -430,13 +642,12 @@ li:hover .solo,
 
 @media (max-width: 760px) {
   .stage {
-    height: 58vh;
-    padding: 4px;
+    height: 62vh;
+    padding: 10px 6px 4px;
   }
 
-  .reset {
-    top: 4px;
-    right: 6px;
+  .rate .label {
+    display: none;
   }
 
   .legend-title {
@@ -444,6 +655,7 @@ li:hover .solo,
   }
 
   .legend:not(.open) .search-row,
+  .legend:not(.open) .tabs,
   .legend:not(.open) .scroll {
     display: none;
   }

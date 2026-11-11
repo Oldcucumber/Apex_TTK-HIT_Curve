@@ -6,21 +6,26 @@
 :root,
 :root[data-theme='light'] {
   color-scheme: light;
-  --bg: #f7f7f5;
+  --bg: #f5f6f8;
   --panel: #ffffff;
-  --panel-2: #f1f1ee;
-  --hover: rgba(24, 24, 20, 0.05);
-  --line: #e4e4df;
-  --line-2: #d3d3cc;
-  --grid: rgba(24, 24, 20, 0.07);
-  --text: #191917;
-  --text-2: #4b4b45;
-  --text-3: #6f6f68;
-  --ink: #191917;
+  --panel-2: #f0f2f5;
+  --hover: rgba(20, 28, 45, 0.045);
+  --line: #e9ebef;
+  --line-2: #d7dae0;
+  --grid: rgba(20, 28, 45, 0.06);
+  --text: #14171c;
+  --text-2: #4a505b;
+  --text-3: #7a818d;
+  --ink: #14171c;
   --on-ink: #ffffff;
-  --brand: #3f8f87;
-  --accent: #3f8f87;
-  --shadow: 0 1px 2px rgba(24, 24, 20, 0.04), 0 6px 20px rgba(24, 24, 20, 0.05);
+  --brand: #2f8f86;
+  --accent: #2f8f86;
+  --primary: #2f8f86;
+  --on-primary: #ffffff;
+  --raised: #ffffff;
+  --track: rgba(20, 28, 45, 0.06);
+  --shadow: 0 0 0 1px rgba(20, 28, 45, 0.04), 0 1px 2px rgba(20, 28, 45, 0.04), 0 8px 24px -12px rgba(20, 28, 45, 0.1);
+  --shadow-sm: 0 0 0 1px rgba(20, 28, 45, 0.05), 0 1px 2px rgba(20, 28, 45, 0.08);
 
   --c-smg: #0d9488;
   --c-ar: #ea580c;
@@ -44,21 +49,26 @@
 
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --bg: #0b0b0c;
-  --panel: #131315;
-  --panel-2: #1b1b1e;
-  --hover: rgba(255, 255, 255, 0.06);
-  --line: #26262a;
-  --line-2: #36363c;
+  --bg: #0c0e12;
+  --panel: #14171c;
+  --panel-2: #1b1f26;
+  --hover: rgba(255, 255, 255, 0.055);
+  --line: #242932;
+  --line-2: #353b47;
   --grid: rgba(255, 255, 255, 0.06);
-  --text: #f2f2f0;
-  --text-2: #c2c2bc;
-  --text-3: #93938c;
-  --ink: #f2f2f0;
-  --on-ink: #0b0b0c;
-  --brand: #5fbcb1;
-  --accent: #5fbcb1;
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
+  --text: #eef0f3;
+  --text-2: #b9bfc9;
+  --text-3: #868d99;
+  --ink: #eef0f3;
+  --on-ink: #0c0e12;
+  --brand: #5cc4b8;
+  --accent: #5cc4b8;
+  --primary: #5cc4b8;
+  --on-primary: #06211e;
+  --raised: #2a303a;
+  --track: rgba(255, 255, 255, 0.07);
+  --shadow: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 12px 32px -16px rgba(0, 0, 0, 0.7);
+  --shadow-sm: 0 0 0 1px rgba(255, 255, 255, 0.07), 0 1px 2px rgba(0, 0, 0, 0.4);
 
   --c-smg: #2dd4bf;
   --c-ar: #fb923c;
@@ -103,6 +113,7 @@ body {
   font-family: system-ui, -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
   font-size: 13.5px;
   line-height: 1.45;
+  letter-spacing: 0.003em;
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
   transition: background-color 200ms ease, color 200ms ease;
@@ -157,8 +168,8 @@ a {
   min-width: 0;
   min-height: 0;
   background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 14px;
+  border: 0;
+  border-radius: 16px;
   box-shadow: var(--shadow);
 }
 
@@ -207,14 +218,13 @@ a {
   background: var(--dot, var(--text-3));
 }
 
-/* segmented control */
+/* segmented control: a tinted track with a raised thumb */
 .seg {
   display: inline-flex;
-  padding: 2px;
+  padding: 3px;
   gap: 2px;
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  background: var(--panel);
+  border-radius: 10px;
+  background: var(--track);
 }
 
 .seg button {
@@ -226,48 +236,58 @@ a {
   border: 0;
   border-radius: 7px;
   background: transparent;
-  color: var(--text-2);
+  color: var(--text-3);
   font-size: 12.5px;
   white-space: nowrap;
-  transition: background-color 120ms ease, color 120ms ease;
+  transition: background-color 140ms ease, color 140ms ease, box-shadow 140ms ease;
 }
 
 .seg button:hover {
-  background: var(--hover);
   color: var(--text);
 }
 
 .seg button[aria-pressed='true'] {
-  background: var(--ink);
-  color: var(--on-ink);
+  background: var(--raised);
+  color: var(--text);
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
 }
 
-/* filter chip */
+/* filter chip: on = quiet raised pill, off = faded */
 .chip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   height: 28px;
   padding: 0 11px;
-  border: 1px solid var(--line);
+  border: 0;
   border-radius: 999px;
   background: transparent;
-  color: var(--text-2);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--text-3);
   font-size: 12.5px;
   white-space: nowrap;
-  transition: border-color 120ms ease, background-color 120ms ease, color 120ms ease;
+  transition: background-color 140ms ease, color 140ms ease, box-shadow 140ms ease, opacity 140ms ease;
+}
+
+.chip .dot {
+  opacity: 0.3;
+  transition: opacity 140ms ease;
 }
 
 .chip:hover {
-  border-color: var(--line-2);
   color: var(--text);
+  background: var(--hover);
 }
 
 .chip[aria-pressed='true'] {
-  border-color: var(--dot, var(--ink));
-  background: color-mix(in srgb, var(--dot, var(--ink)) 11%, transparent);
+  background: var(--raised);
   color: var(--text);
-  font-weight: 600;
+  box-shadow: var(--shadow-sm);
+}
+
+.chip[aria-pressed='true'] .dot {
+  opacity: 1;
 }
 
 .chip small {
@@ -282,18 +302,22 @@ a {
   gap: 6px;
   height: 30px;
   padding: 0 12px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--panel);
+  border: 0;
+  border-radius: 9px;
+  background: var(--raised);
   color: var(--text);
   font-size: 12.5px;
   white-space: nowrap;
-  transition: background-color 120ms ease, border-color 120ms ease;
+  box-shadow: var(--shadow-sm);
+  transition: background-color 120ms ease, opacity 120ms ease, transform 120ms ease;
 }
 
 .btn:hover:not(:disabled) {
-  background: var(--hover);
-  border-color: var(--line-2);
+  background: color-mix(in srgb, var(--raised) 92%, var(--text));
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(0.5px);
 }
 
 .btn:disabled {
@@ -302,14 +326,15 @@ a {
 }
 
 .btn.primary {
-  border-color: var(--ink);
-  background: var(--ink);
-  color: var(--on-ink);
+  background: var(--primary);
+  color: var(--on-primary);
+  font-weight: 600;
+  box-shadow: none;
 }
 
 .btn.primary:hover:not(:disabled) {
-  background: var(--ink);
-  opacity: 0.88;
+  background: var(--primary);
+  opacity: 0.9;
 }
 
 .icon-btn {
@@ -344,10 +369,11 @@ a {
   height: 30px;
   min-width: 0;
   padding: 0 10px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--panel);
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: var(--track);
   color: var(--text);
+  transition: border-color 120ms ease, background-color 120ms ease, box-shadow 120ms ease;
 }
 
 .field::placeholder {
@@ -356,7 +382,9 @@ a {
 
 .field:focus {
   outline: none;
-  border-color: var(--ink);
+  border-color: var(--accent);
+  background: var(--panel);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
 }
 
 select.field {

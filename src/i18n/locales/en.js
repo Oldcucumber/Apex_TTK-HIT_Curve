@@ -52,7 +52,6 @@ export default {
   "ex.better.low": "lower is better",
   "ex.better.high": "higher is better",
   "ex.nodata": "No data for this metric",
-  "ex.hint": "Hover for values, wheel to zoom, drag to pan",
   "ex.sweetShort": "Sweet spot",
   "ex.median": "Median",
   "ex.sweet": "Sweet spot (better than median on both)",
@@ -147,7 +146,6 @@ export default {
   "hr.solo": "Only this one",
   "hr.search": "Filter weapons…",
   "hr.visible": "{n} / {total} shown",
-  "hr.pickHint": "All curves hidden: click weapon names on the right to add them",
   "hr.legend": "Weapons",
   "dr.mag.white": "White",
   "dr.mag.blue": "Blue",
@@ -176,5 +174,16 @@ export default {
   "field.mag.none": "No mag",
   "field.mag.white": "White mag",
   "field.mag.blue": "Blue mag",
-  "field.mag.purple": "Purple mag"
+  "field.mag.purple": "Purple mag",
+  "ov.abilities": "Abilities",
+  "hr.myRate": "My hit rate",
+  "hr.top": "Fastest at this hit rate",
+  "hr.all": "All weapons",
+  "hr.help": "How it is calculated",
+  "hr.default": "Suggested",
+  "hr.outOfMag": "cannot kill in one mag",
+  "ex.hint": "Click for details, hover for values, wheel to zoom, drag to pan",
+  "ex.states": "{n} states",
+  "hr.showTop": "Show only these",
+  "hr.pickHint": "No curves shown yet: click a weapon on the right to add it"
 }

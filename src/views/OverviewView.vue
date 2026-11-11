@@ -19,6 +19,9 @@ const PRESETS = {
 const classes = ref([])
 const query = ref('')
 const onlyChanged = ref(false)
+// Abilities (ultimates) are reference rows, not weapon picks: hidden unless asked for
+const showAbilities = ref(false)
+const abilityCount = weapons.filter(isAbility).length
 const changedCount = weapons.filter(changeOf).length
 const preset = ref('combat')
 const sort = ref({ key: 'ttk', dir: 'asc' })
@@ -39,6 +42,7 @@ const rows = computed(() => {
   const list = weapons.filter(w => {
     if (classes.value.length && !classes.value.includes(w.cls)) return false
     if (onlyChanged.value && !changeOf(w)) return false
+    if (!showAbilities.value && isAbility(w)) return false
     if (!q) return true
     return haystack.get(w.id).includes(q) || `${clsName(w.cls)} ${ammoName(w.ammo)}`.toLowerCase().includes(q)
   })
@@ -138,6 +142,9 @@ const armorColor = computed(() => `var(${ARMORS.find(a => a.key === store.armor)
       <ClassFilter v-model="classes" />
       <button class="chip chg-chip" :aria-pressed="onlyChanged" @click="onlyChanged = !onlyChanged">
         <i class="dot"></i>{{ t('chg.filter', { s: meta.season }) }} <small>{{ changedCount }}</small>
+      </button>
+      <button class="chip" :aria-pressed="showAbilities" @click="showAbilities = !showAbilities">
+        {{ t('ov.abilities') }} <small>{{ abilityCount }}</small>
       </button>
       <div class="grow"></div>
       <Seg v-model="preset" :options="presetOptions" />
@@ -554,14 +561,14 @@ tr.active .pick {
 }
 
 .pick:hover:not(:disabled) {
-  border-color: var(--ink);
-  color: var(--text);
+  border-color: var(--primary);
+  color: var(--primary);
 }
 
 .pick.on {
-  border-color: var(--ink);
-  background: var(--ink);
-  color: var(--on-ink);
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--on-primary);
 }
 
 .pick:disabled {
